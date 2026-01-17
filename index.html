@@ -1,0 +1,153 @@
+import React from 'react';
+import { Shield, Brain, FileText, Code, CheckCircle, Layers, ArrowRight, Cpu } from 'lucide-react';
+
+const LandingPage = () => {
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+      
+      {/* Navbar */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-2">
+              <Cpu className="h-8 w-8 text-blue-600" />
+              <span className="text-xl font-bold tracking-tight">ResumeX</span>
+            </div>
+            <div className="hidden md:flex gap-6">
+              <a href="#features" className="text-sm font-medium hover:text-blue-600">Features</a>
+              <a href="#rationale" className="text-sm font-medium hover:text-blue-600">Explainable AI</a>
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                Recruiter Login
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <header className="relative pt-20 pb-32 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold mb-6">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            </span>
+            SRM Innovation Hackathon Edition 1
+          </div>
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 mb-6">
+            The Elite-Hire <span className="text-blue-600">Architecture</span>
+          </h1>
+          <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-10">
+            A full-stack AI evaluation system that manages the journey from resume upload to a final hiring decision with transparent rationale.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button className="flex items-center justify-center gap-2 bg-slate-900 text-white px-8 py-3 rounded-xl font-semibold hover:bg-slate-800 transition">
+              Start Hiring Process
+              <ArrowRight className="h-4 w-4" />
+            </button>
+            <button className="px-8 py-3 rounded-xl font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition">
+              View Candidate Demo
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Feature Grid (Core Building Blocks) */}
+      <section id="features" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-slate-900">The 5 Core Building Blocks</h2>
+            <p className="mt-4 text-slate-500">Meeting every requirement of the Cygnusa Architecture Challenge.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* 1. Resume Shortlisting */}
+            <div className="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-lg transition">
+              <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center mb-6">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Smart Resume Parsing</h3>
+              <p className="text-slate-600 text-sm mb-4">
+                The "Gatekeeper" module. Extracts entities from PDFs/Docs and ranks candidates (High Match, Potential, Reject) against the JD.
+              </p>
+            </div>
+
+            {/* 2. Assessment Engine */}
+            <div className="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-lg transition">
+              <div className="h-12 w-12 bg-purple-100 rounded-lg flex items-center justify-center mb-6">
+                <Code className="h-6 w-6 text-purple-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Multi-Modal Assessment</h3>
+              <p className="text-slate-600 text-sm mb-4">
+                Includes a functional Coding Sandbox (IDE), scenario-based MCQs, and slider inputs for psychometric mapping.
+              </p>
+            </div>
+
+            {/* 3. Dual-Track Scoring */}
+            <div className="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-lg transition">
+              <div className="h-12 w-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-6">
+                <Layers className="h-6 w-6 text-indigo-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Dual-Track Logic</h3>
+              <p className="text-slate-600 text-sm mb-4">
+                Separates scores into Technical Assessment (Hard Skills) and Psychometric Assessment (Soft Skills & Resilience).
+              </p>
+            </div>
+
+            {/* 4. Integrity Shield */}
+            <div className="p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:shadow-lg transition">
+              <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center mb-6">
+                <Shield className="h-6 w-6 text-red-600" />
+              </div>
+              <h3 className="text-xl font-bold mb-3">Integrity Shield</h3>
+              <p className="text-slate-600 text-sm mb-4">
+                Proctoring via visual monitoring (face detection) and environment control (tab-switch detection) with a full audit trail.
+              </p>
+            </div>
+
+            {/* 5. Explainable AI */}
+            <div className="col-span-1 md:col-span-2 lg:col-span-2 p-8 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-xl">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="h-12 w-12 bg-white/10 rounded-lg flex items-center justify-center mb-6">
+                    <Brain className="h-6 w-6 text-blue-400" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-3">Explainable AI Decision Engine</h3>
+                  <p className="text-slate-300 text-sm max-w-lg mb-6">
+                    We don't just give a score. We provide the <strong>Rationale</strong>. 
+                    Our engine generates text-based justifications for every "Hire/No-Hire" decision.
+                  </p>
+                  <ul className="space-y-2 text-sm text-slate-300">
+                    <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-400"/> Automated Hiring Verdict</li>
+                    <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-400"/> Competency Mapping (Strengths vs Weaknesses)</li>
+                    <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-400"/> Logic Transparency for Recruiters</li>
+                  </ul>
+                </div>
+                {/* Mock UI Element for XAI */}
+                <div className="hidden lg:block bg-white/10 p-4 rounded-lg w-64 backdrop-blur-sm border border-white/10">
+                  <div className="text-xs text-slate-400 uppercase font-bold mb-2">System Verdict</div>
+                  <div className="text-green-400 font-bold text-lg mb-2">RECOMMEND HIRE</div>
+                  <div className="text-xs text-slate-300 italic">
+                    "Candidate scored 92% in Technical but shows moderate resilience. Recommended for IC role."
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-slate-200 py-12">
+        <div className="max-w-7xl mx-auto px-4 text-center">
+          <p className="text-slate-500 text-sm">
+            Designed for SRMIST x CYGNUSA Technologies <br/>
+            <span className="font-semibold text-slate-900">Elite-Hire Architecture Challenge</span>
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default LandingPage;

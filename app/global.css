@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+/* 1. DEFINE VARIABLES */
+:root {
+  --background: #4a1c1c;
+  --foreground: #f5e6e6;
+  --card: #3d1818;
+  --card-foreground: #f5e6e6;
+  --popover: #3d1818;
+  --popover-foreground: #f5e6e6;
+  --primary: #d4908f;
+  --primary-foreground: #1a0808;
+  --secondary: #5c2828;
+  --secondary-foreground: #f5e6e6;
+  --muted: #4a1c1c;
+  --muted-foreground: #c9a8a8;
+  --accent: #6b3535;
+  --accent-foreground: #f5e6e6;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #f5e6e6;
+  --border: #6b3535;
+  --input: #5c2828;
+  --ring: #d4908f;
+  --radius: 0.75rem;
+}
+
+@layer base {
+  *, ::after, ::before {
+    border-color: var(--border);
+    outline-color: var(--ring);
+  }
+
+  /* 2. SCROLL SNAP CONFIGURATION */
+  html {
+    height: 100vh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory; /* The main snap enabler */
+    scroll-behavior: smooth;
+  }
+
+  body {
+    /* FIX: Used standard CSS instead of @apply to prevent build errors */
+    color: var(--foreground);
+    background-color: transparent;
+    min-height: 100vh;
+    line-height: inherit;
+  }
+}
+
+/* 3. SECTION SNAP CLASS */
+.snap-section {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+}
