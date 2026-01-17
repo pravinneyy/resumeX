@@ -1,0 +1,94 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+:root {
+  --background: #4a1c1c;
+  --foreground: #f5e6e6;
+  --card: #3d1818;
+  --card-foreground: #f5e6e6;
+  --popover: #3d1818;
+  --popover-foreground: #f5e6e6;
+  --primary: #d4908f;
+  --primary-foreground: #1a0808;
+  --secondary: #5c2828;
+  --secondary-foreground: #f5e6e6;
+  --muted: #4a1c1c;
+  --muted-foreground: #c9a8a8;
+  --accent: #6b3535;
+  --accent-foreground: #f5e6e6;
+  --destructive: #ff6b6b;
+  --destructive-foreground: #f5e6e6;
+  --border: #6b3535;
+  --input: #5c2828;
+  --ring: #d4908f;
+  --radius: 0.75rem;
+}
+
+@layer base {
+  *, ::after, ::before {
+    border-color: var(--border);
+    outline-color: var(--ring);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* FIX: 'mandatory' makes it snap IMMEDIATELY to the next section */
+    scroll-snap-type: y mandatory;
+    height: 100vh;
+    overflow-y: scroll;
+  }
+
+  body {
+    @apply text-foreground;
+    background-color: transparent; 
+    min-height: 100vh;
+  }
+}
+
+/* FIX: Strict locking rules */
+.snap-section {
+  scroll-snap-align: start;
+  scroll-snap-stop: always; /* Forces it to stop at every section */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; 
+  position: relative;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
