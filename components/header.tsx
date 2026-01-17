@@ -3,7 +3,11 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+<<<<<<< HEAD
 import { Menu, X, ArrowRight } from "lucide-react"
+=======
+import { Menu, X } from "lucide-react"
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
 import { cn } from "@/lib/utils"
 import { UserButton, SignedIn, SignedOut, ClerkLoaded, ClerkLoading } from "@clerk/nextjs"
 
@@ -53,6 +57,10 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
+<<<<<<< HEAD
+=======
+        // FIX: Changed background to a nicer translucent dark red with blur
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
         isScrolled 
           ? "bg-[#2d1010]/80 backdrop-blur-md border-b border-[#5a3030]/30 shadow-lg" 
           : "bg-transparent",
@@ -81,11 +89,16 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
 
         <div className="hidden md:flex items-center gap-3 min-w-[200px] justify-end">
           <ClerkLoading>
+<<<<<<< HEAD
             <div className="h-9 w-24 bg-[#5a3030]/50 rounded animate-pulse" />
+=======
+            <AuthButtons />
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
           </ClerkLoading>
 
           <ClerkLoaded>
             <SignedIn>
+<<<<<<< HEAD
               {/* FIX: Added 'Go to Dashboard' button when logged in */}
               <div className="flex items-center gap-4">
                 <Link href="/dashboard">
@@ -95,6 +108,9 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
                 </Link>
                 <UserButton afterSignOutUrl="/" />
               </div>
+=======
+              <UserButton afterSignOutUrl="/" />
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
             </SignedIn>
             <SignedOut>
               <AuthButtons />
@@ -110,7 +126,10 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
         </button>
       </div>
 
+<<<<<<< HEAD
       {/* Mobile Menu */}
+=======
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
       <div
         className={cn(
           "md:hidden overflow-hidden transition-all duration-500",
@@ -123,6 +142,7 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
               {item}
             </Link>
           ))}
+<<<<<<< HEAD
           <div className="flex flex-col gap-3 pt-2">
             <ClerkLoaded>
               <SignedIn>
@@ -134,6 +154,12 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
                  <div className="flex justify-center pt-2">
                    <UserButton afterSignOutUrl="/" />
                  </div>
+=======
+          <div className="flex gap-3 pt-2">
+            <ClerkLoaded>
+              <SignedIn>
+                <UserButton afterSignOutUrl="/" />
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
               </SignedIn>
               <SignedOut>
                 <AuthButtons />

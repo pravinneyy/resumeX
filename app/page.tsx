@@ -1,6 +1,11 @@
 "use client"
 
+<<<<<<< HEAD
 import { useState, useLayoutEffect, useEffect } from "react"
+=======
+import { useState, useLayoutEffect } from "react"
+// ... (keep your other imports like Header, HeroSection, etc.)
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
 import { Header } from "@/components/header"
 import { HeroSection } from "@/components/hero-section"
 import { FeaturesSection } from "@/components/features-section"
@@ -12,17 +17,26 @@ import { ContactSection } from "@/components/contact-section"
 import { Footer } from "@/components/footer"
 import { BackgroundElements } from "@/components/background-elements"
 import { CursorGlow } from "@/components/cursor-glow"
+<<<<<<< HEAD
 import { SignIn, SignUp, useUser } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
 import { Briefcase, User, ArrowRight } from "lucide-react" // Added ArrowRight
 import { useRouter } from "next/navigation"
+=======
+import { SignIn, SignUp } from "@clerk/nextjs"
+import { cn } from "@/lib/utils"
+import { Briefcase, User } from "lucide-react"
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
 
 export default function Home() {
   const [activeModal, setActiveModal] = useState<"signin" | "signup" | null>(null)
   const [selectedRole, setSelectedRole] = useState<"candidate" | "recruiter" | null>(null)
+<<<<<<< HEAD
   
   const { isSignedIn, isLoaded } = useUser()
   const router = useRouter()
+=======
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
 
   const closeModals = () => {
     setActiveModal(null)
@@ -31,6 +45,7 @@ export default function Home() {
   
   const isModalOpen = activeModal !== null
 
+<<<<<<< HEAD
   // Auto-redirect for logged-in users (Standard check)
   useEffect(() => {
     if (isLoaded && isSignedIn) {
@@ -52,6 +67,8 @@ export default function Home() {
     }
   }, [])
 
+=======
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
   useLayoutEffect(() => {
     if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
@@ -59,12 +76,15 @@ export default function Home() {
     window.scrollTo(0, 0);
   }, []);
 
+<<<<<<< HEAD
   // Helper to get the correct Redirect URL
   // If a role is selected, we tell the backend: "/auth/sync?role=recruiter"
   const getRedirectUrl = () => {
     return selectedRole ? `/auth/sync?role=${selectedRole}` : "/auth/sync"
   }
 
+=======
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
   return (
     <main className="min-h-screen relative">
       <div className="fixed inset-0 z-0 pointer-events-none">
@@ -79,7 +99,10 @@ export default function Home() {
           onSignUpClick={() => setActiveModal("signup")} 
         />
         
+<<<<<<< HEAD
         {/* Pass sections normally */}
+=======
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
         <div className="snap-section"><HeroSection /></div>
         <div className="snap-section"><FeaturesSection /></div>
         <div className="snap-section"><MissionSection /></div>
@@ -104,6 +127,7 @@ export default function Home() {
           )}
           onClick={(e) => e.stopPropagation()}
         >
+<<<<<<< HEAD
           {/* --- SIGN IN MODAL --- */}
           {activeModal === "signin" && (
             <div className="flex flex-col items-center">
@@ -143,6 +167,16 @@ export default function Home() {
           )}
 
           {/* --- SIGN UP MODAL --- */}
+=======
+          {/* --- FIX: ADDED forceRedirectUrl TO SIGN IN --- */}
+          {activeModal === "signin" && (
+            <SignIn 
+              routing="hash" 
+              forceRedirectUrl="/dashboard" 
+            />
+          )}
+
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
           {activeModal === "signup" && (
             <>
               {!selectedRole ? (
@@ -190,12 +224,16 @@ export default function Home() {
               ) : (
                 <SignUp 
                   routing="hash" 
+<<<<<<< HEAD
                   // CRITICAL: Send to backend with the role intent
                   forceRedirectUrl={getRedirectUrl()}
                   fallbackRedirectUrl={getRedirectUrl()}
                   signInFallbackRedirectUrl={getRedirectUrl()}
                   // We also save it to metadata immediately here as a fallback
                   unsafeMetadata={{ role: selectedRole }}
+=======
+                  forceRedirectUrl={`/onboarding?role=${selectedRole}`}
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
                 />
               )}
             </>

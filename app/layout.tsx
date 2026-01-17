@@ -2,7 +2,11 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+<<<<<<< HEAD
 import "./global.css"
+=======
+import "./globals.css"
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
 import { ClerkProvider } from "@clerk/nextjs"
 
 const _geist = Geist({ subsets: ["latin"] })

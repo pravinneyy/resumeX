@@ -49,9 +49,15 @@
     "lucide-react": "^0.454.0",
     "next": "16.0.10",
     "next-themes": "^0.4.6",
+<<<<<<< HEAD
     "react": "19.0.3",
     "react-day-picker": "9.8.0",
     "react-dom": "19.0.3",
+=======
+    "react": "19.2.0",
+    "react-day-picker": "9.8.0",
+    "react-dom": "19.2.0",
+>>>>>>> ed3e7fc4e5fa75221f910e81c5b6be81dcd35de4
     "react-hook-form": "^7.60.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "2.15.4",
