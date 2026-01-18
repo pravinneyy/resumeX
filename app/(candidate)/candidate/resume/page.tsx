@@ -1,103 +1,137 @@
 "use client"
 
 import { useState } from "react"
+import { useUser } from "@clerk/nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { UploadCloud, FileText, CheckCircle2, AlertCircle } from "lucide-react"
-import { Progress } from "@/components/ui/progress"
+import { UploadCloud, FileText, CheckCircle2, Loader2, Mail, Phone, Cpu } from "lucide-react"
 
 export default function ResumePage() {
+  const { user } = useUser()
   const [isUploading, setIsUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [parsedData, setParsedData] = useState<boolean>(false)
+  const [parsedData, setParsedData] = useState<any>(null)
+  const [error, setError] = useState("")
 
-  const handleUpload = () => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
     setIsUploading(true)
-    // Simulate upload and python parsing
-    let progress = 0
-    const interval = setInterval(() => {
-       progress += 10
-       setUploadProgress(progress)
-       if (progress >= 100) {
-          clearInterval(interval)
-          setIsUploading(false)
-          setParsedData(true)
-       }
-    }, 300)
+    setError("")
+    
+    const formData = new FormData()
+    formData.append("file", file)
+    if (user) formData.append("userId", user.id)
+
+    try {
+      const res = await fetch("http://127.0.0.1:5000/api/resume/parse", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+      
+      if (res.ok) {
+        setParsedData(data)
+      } else {
+        setError(data.error || "Failed to parse resume")
+      }
+    } catch (err) {
+      console.error(err)
+      setError("Server connection failed. Is Python running?")
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto pb-10">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold">Resume Analysis</h1>
-        <p className="text-muted-foreground">Upload your CV to let our AI extract your skills and match you with jobs.</p>
+        <h1 className="text-3xl font-bold">Resume Scanner</h1>
+        <p className="text-muted-foreground">Upload your CV to extract skills and profile details instantly.</p>
       </div>
 
       {/* Upload Area */}
       {!parsedData && (
-        <Card className="border-dashed border-2 border-border bg-secondary/10 hover:bg-secondary/20 transition-colors">
+        <Card className={`border-dashed border-2 border-border bg-secondary/10 hover:bg-secondary/20 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
           <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
              <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center">
                 <UploadCloud className="w-10 h-10 text-primary" />
              </div>
              <div className="text-center">
-                <p className="text-lg font-medium">Drag & drop your resume here</p>
-                <p className="text-sm text-muted-foreground">PDF or DOCX up to 10MB</p>
+                <p className="text-lg font-medium">Click to Upload Resume</p>
+                <p className="text-sm text-muted-foreground">PDF or DOCX supported</p>
              </div>
              
-             {isUploading ? (
-                <div className="w-full max-w-xs space-y-2">
-                   <Progress value={uploadProgress} className="h-2" />
-                   <p className="text-xs text-center text-muted-foreground">Analyzing with AI...</p>
-                </div>
-             ) : (
-                <Button onClick={handleUpload} className="mt-2">Select File</Button>
-             )}
+             <div className="relative">
+                <Button disabled={isUploading}>
+                    {isUploading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <FileText className="w-4 h-4 mr-2" />}
+                    {isUploading ? "Analyzing..." : "Select File"}
+                </Button>
+                <input 
+                   type="file" 
+                   accept=".pdf,.docx"
+                   onChange={handleFileUpload}
+                   className="absolute inset-0 opacity-0 cursor-pointer"
+                   disabled={isUploading}
+                />
+             </div>
+             {error && <p className="text-red-500 text-sm">{error}</p>}
           </CardContent>
         </Card>
       )}
 
-      {/* Results View (After "Parsing") */}
+      {/* Results View */}
       {parsedData && (
-         <div className="space-y-6">
+         <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center gap-4 bg-green-500/10 border border-green-500/20 p-4 rounded-lg text-green-500">
                <CheckCircle2 className="w-6 h-6" />
                <div>
                   <h3 className="font-bold">Resume Parsed Successfully</h3>
-                  <p className="text-xs opacity-90">Our AI has extracted the following profile data.</p>
+                  <p className="text-xs opacity-90">We extracted the following information from your document.</p>
                </div>
-               <Button variant="ghost" size="sm" className="ml-auto hover:bg-green-500/20" onClick={() => setParsedData(false)}>Upload New</Button>
+               <Button variant="ghost" size="sm" className="ml-auto hover:bg-green-500/20" onClick={() => setParsedData(null)}>
+                  Upload New
+               </Button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-               <Card className="bg-card border-border">
-                  <CardHeader><CardTitle>Extracted Skills</CardTitle></CardHeader>
-                  <CardContent className="flex flex-wrap gap-2">
-                     {["Python", "React", "Next.js", "TypeScript", "Machine Learning", "Data Analysis", "SQL"].map(skill => (
-                        <span key={skill} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium border border-primary/20">
-                           {skill}
-                        </span>
-                     ))}
+               {/* Contact Info Card */}
+               <Card className="bg-card border-border h-full">
+                  <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="w-5 h-5 text-primary" /> Contact Details</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                     <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
+                        <Mail className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                           <p className="text-xs text-muted-foreground">Email Address</p>
+                           <p className="font-medium">{parsedData.email}</p>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-3 p-3 bg-secondary/30 rounded-lg">
+                        <Phone className="w-5 h-5 text-muted-foreground" />
+                        <div>
+                           <p className="text-xs text-muted-foreground">Phone Number</p>
+                           <p className="font-medium">{parsedData.phone}</p>
+                        </div>
+                     </div>
                   </CardContent>
                </Card>
 
-               <Card className="bg-card border-border">
-                  <CardHeader><CardTitle>Experience Summary</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                     <div className="flex gap-4">
-                        <div className="h-10 w-10 rounded bg-secondary flex items-center justify-center font-bold text-muted-foreground">G</div>
-                        <div>
-                           <h4 className="font-bold">Senior Engineer</h4>
-                           <p className="text-sm text-muted-foreground">Google • 2020 - Present</p>
+               {/* Skills Card */}
+               <Card className="bg-card border-border h-full">
+                  <CardHeader><CardTitle className="flex items-center gap-2"><Cpu className="w-5 h-5 text-primary" /> Detected Skills</CardTitle></CardHeader>
+                  <CardContent>
+                     {parsedData.skills.length === 0 ? (
+                        <p className="text-muted-foreground text-sm italic">No specific skills detected from our database.</p>
+                     ) : (
+                        <div className="flex flex-wrap gap-2">
+                           {parsedData.skills.map((skill: string) => (
+                              <span key={skill} className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium border border-primary/20 capitalize">
+                                 {skill}
+                              </span>
+                           ))}
                         </div>
-                     </div>
-                     <div className="flex gap-4">
-                        <div className="h-10 w-10 rounded bg-secondary flex items-center justify-center font-bold text-muted-foreground">A</div>
-                        <div>
-                           <h4 className="font-bold">Software Developer</h4>
-                           <p className="text-sm text-muted-foreground">Amazon • 2018 - 2020</p>
-                        </div>
-                     </div>
+                     )}
                   </CardContent>
                </Card>
             </div>

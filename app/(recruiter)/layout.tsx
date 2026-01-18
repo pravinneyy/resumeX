@@ -5,6 +5,7 @@ import "./recruiter.css"
 import { Sidebar } from "@/components/recruiter/sidebar"
 import { Header } from "@/components/recruiter/header"
 
+
 export default function RecruiterLayout({
   children,
 }: {

@@ -1,297 +1,161 @@
 "use client"
 
-import type React from "react"
-
-// FIX: Removed DashboardLayout import
+import { useState } from "react"
+import { useUser } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, X, Briefcase, GraduationCap, Code, MapPin, DollarSign, Clock, Save, Sparkles } from "lucide-react"
-import { useState } from "react"
+import { Briefcase, MapPin, DollarSign, CheckCircle2 } from "lucide-react"
 
-const initialSkills = ["React", "TypeScript", "Node.js"]
+export default function PostJobPage() {
+  const { user, isLoaded } = useUser()
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
 
-export default function RecruitPage() {
-  const [skills, setSkills] = useState<string[]>(initialSkills)
-  const [newSkill, setNewSkill] = useState("")
-  const [isSaving, setIsSaving] = useState(false)
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    
+    if (!isLoaded || !user) {
+      alert("You must be logged in to post a job.")
+      return
+    }
 
-  const addSkill = () => {
-    if (newSkill.trim() && !skills.includes(newSkill.trim())) {
-      setSkills([...skills, newSkill.trim()])
-      setNewSkill("")
+    setLoading(true)
+
+    const formData = new FormData(event.currentTarget)
+    
+    const jobData = {
+      title: formData.get("title"),
+      company: formData.get("company"),
+      location: formData.get("location"),
+      salary: formData.get("salary"),
+      type: formData.get("type"),
+      skills: formData.get("skills"), 
+      recruiterId: user.id 
+    }
+
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(jobData),
+      })
+
+      if (response.ok) {
+        setSuccess(true)
+        setTimeout(() => {
+            router.push("/recruiter") 
+        }, 2000)
+      } else {
+        const errorData = await response.json()
+        alert(`Failed to post job: ${errorData.message || "Unknown error"}`)
+      }
+    } catch (error) {
+      console.error("Error:", error)
+      alert("Error connecting to the server. Is the Python backend running?")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const removeSkill = (skillToRemove: string) => {
-    setSkills(skills.filter((skill) => skill !== skillToRemove))
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault()
-      addSkill()
-    }
-  }
-
-  const handleSave = () => {
-    setIsSaving(true)
-    setTimeout(() => setIsSaving(false), 1500)
+  if (success) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[50vh] animate-fade-in">
+        <div className="h-20 w-20 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
+          <CheckCircle2 className="w-10 h-10 text-green-500" />
+        </div>
+        <h2 className="text-2xl font-bold">Job Posted Successfully!</h2>
+        <p className="text-muted-foreground">Redirecting you to the dashboard...</p>
+      </div>
+    )
   }
 
   return (
-    // FIX: Removed <DashboardLayout> wrapper
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Create Job Requirement</h1>
-          <p className="text-muted-foreground mt-1">Define the requirements for your ideal candidate</p>
-        </div>
-        <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-          {isSaving ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              Save Requirements
-            </>
-          )}
-        </Button>
+    <div className="max-w-3xl mx-auto animate-fade-in pb-10">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Post a New Job</h1>
+        <p className="text-muted-foreground">Find the perfect candidate by creating a detailed job listing.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Basic Information */}
-        <Card className="bg-card border-border animate-slide-up">
+      <form onSubmit={handleSubmit}>
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-primary" />
-              Basic Information
-            </CardTitle>
-            <CardDescription>Enter the job title and description</CardDescription>
+            <CardTitle>Job Details</CardTitle>
+            <CardDescription>Enter the core information about the role.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="jobTitle">Job Title</Label>
-              <Input id="jobTitle" placeholder="e.g., Senior Software Engineer" className="bg-secondary/50" />
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Job Title</Label>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input id="title" name="title" placeholder="e.g. Senior Frontend Engineer" className="pl-9" required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="company">Company Name</Label>
+                <Input id="company" name="company" placeholder="e.g. Acme Corp" required />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="department">Department</Label>
-              <Select>
-                <SelectTrigger className="bg-secondary/50">
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="engineering">Engineering</SelectItem>
-                  <SelectItem value="design">Design</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="hr">Human Resources</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="location">Location</Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input id="location" name="location" placeholder="e.g. New York, Remote" className="pl-9" required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="salary">Salary Range</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input id="salary" name="salary" placeholder="e.g. $120k - $150k" className="pl-9" required />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="space-y-2">
+                <Label htmlFor="type">Employment Type</Label>
+                <Select name="type" required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Full-time">Full-time</SelectItem>
+                    <SelectItem value="Part-time">Part-time</SelectItem>
+                    <SelectItem value="Contract">Contract</SelectItem>
+                    <SelectItem value="Internship">Internship</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="skills">Required Skills (Comma separated)</Label>
+                <Input id="skills" name="skills" placeholder="e.g. React, Python, AWS" required />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Job Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Describe the role and responsibilities..."
-                className="bg-secondary/50 min-h-[120px]"
+              <Textarea 
+                id="description" 
+                name="description" 
+                placeholder="Describe the role, responsibilities, and requirements..." 
+                className="min-h-[150px]"
               />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Skills & Expertise */}
-        <Card className="bg-card border-border animate-slide-up" style={{ animationDelay: "50ms" }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Code className="w-5 h-5 text-primary" />
-              Required Skills
-            </CardTitle>
-            <CardDescription>Add the technical and soft skills required</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                value={newSkill}
-                onChange={(e) => setNewSkill(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Add a skill..."
-                className="bg-secondary/50"
-              />
-              <Button onClick={addSkill} size="icon" variant="secondary">
-                <Plus className="w-4 h-4" />
+            <div className="flex justify-end gap-4 pt-4">
+              <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
+              <Button type="submit" className="bg-primary text-primary-foreground" disabled={loading}>
+                {loading ? "Posting..." : "Post Job Now"}
               </Button>
             </div>
-            <div className="flex flex-wrap gap-2 min-h-[100px] p-3 bg-secondary/30 rounded-lg">
-              {skills.map((skill) => (
-                <Badge
-                  key={skill}
-                  variant="secondary"
-                  className="px-3 py-1.5 bg-primary/20 text-primary hover:bg-primary/30 transition-colors cursor-default group"
-                >
-                  {skill}
-                  <button
-                    onClick={() => removeSkill(skill)}
-                    className="ml-2 opacity-60 hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </Badge>
-              ))}
-              {skills.length === 0 && (
-                <p className="text-muted-foreground text-sm">No skills added yet. Start typing above.</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Skill Level Required</Label>
-              <Select>
-                <SelectTrigger className="bg-secondary/50">
-                  <SelectValue placeholder="Select skill level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                  <SelectItem value="expert">Expert</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </CardContent>
         </Card>
-
-        {/* Experience Requirements */}
-        <Card className="bg-card border-border animate-slide-up" style={{ animationDelay: "100ms" }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <GraduationCap className="w-5 h-5 text-primary" />
-              Experience & Education
-            </CardTitle>
-            <CardDescription>Specify experience and educational requirements</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="minExp">Min Experience (years)</Label>
-                <Input id="minExp" type="number" min="0" placeholder="0" className="bg-secondary/50" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="maxExp">Max Experience (years)</Label>
-                <Input id="maxExp" type="number" min="0" placeholder="10" className="bg-secondary/50" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Education Level</Label>
-              <Select>
-                <SelectTrigger className="bg-secondary/50">
-                  <SelectValue placeholder="Select education level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="high-school">High School</SelectItem>
-                  <SelectItem value="bachelors">Bachelor's Degree</SelectItem>
-                  <SelectItem value="masters">Master's Degree</SelectItem>
-                  <SelectItem value="phd">PhD</SelectItem>
-                  <SelectItem value="any">Any</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="certifications">Preferred Certifications</Label>
-              <Input id="certifications" placeholder="e.g., AWS Certified, PMP" className="bg-secondary/50" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Job Details */}
-        <Card className="bg-card border-border animate-slide-up" style={{ animationDelay: "150ms" }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Job Details
-            </CardTitle>
-            <CardDescription>Location, salary, and employment type</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input id="location" placeholder="e.g., New York, NY or Remote" className="bg-secondary/50" />
-            </div>
-            <div className="space-y-2">
-              <Label>Employment Type</Label>
-              <Select>
-                <SelectTrigger className="bg-secondary/50">
-                  <SelectValue placeholder="Select employment type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full-time">Full-time</SelectItem>
-                  <SelectItem value="part-time">Part-time</SelectItem>
-                  <SelectItem value="contract">Contract</SelectItem>
-                  <SelectItem value="internship">Internship</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="salaryMin" className="flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" /> Min Salary
-                </Label>
-                <Input id="salaryMin" type="number" placeholder="50000" className="bg-secondary/50" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="salaryMax" className="flex items-center gap-1">
-                  <DollarSign className="w-3 h-3" /> Max Salary
-                </Label>
-                <Input id="salaryMax" type="number" placeholder="100000" className="bg-secondary/50" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Work Schedule
-              </Label>
-              <Select>
-                <SelectTrigger className="bg-secondary/50">
-                  <SelectValue placeholder="Select schedule" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="9-5">9 AM - 5 PM</SelectItem>
-                  <SelectItem value="flexible">Flexible Hours</SelectItem>
-                  <SelectItem value="shifts">Shift-based</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* AI Suggestions Card */}
-      <Card
-        className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 animate-slide-up"
-        style={{ animationDelay: "200ms" }}
-      >
-        <CardContent className="flex items-center gap-4 py-4">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/20">
-            <Sparkles className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-foreground">AI-Powered Matching</h3>
-            <p className="text-sm text-muted-foreground">
-              Once you save these requirements, our AI will automatically match and rank candidates based on their
-              resumes.
-            </p>
-          </div>
-          <Button variant="outline" className="border-primary/30 hover:bg-primary/10 bg-transparent">
-            Learn More
-          </Button>
-        </CardContent>
-      </Card>
+      </form>
     </div>
   )
 }
