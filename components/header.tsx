@@ -59,6 +59,7 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
       )}
     >
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        {/* LOGO */}
         <Link
           href="/"
           className="text-2xl font-bold text-[#ffb3b3] hover:text-white transition-all duration-300 hover:drop-shadow-[0_0_10px_rgba(255,179,179,0.5)]"
@@ -66,19 +67,9 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
           ResumeX
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8">
-          {["For candidates", "For recruiters", "How it works"].map((item) => (
-            <Link
-              key={item}
-              href="#"
-              className="text-sm text-[#ebd0d0] hover:text-white transition-all duration-300 relative group"
-            >
-              {item}
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#ffb3b3] transition-all duration-300 group-hover:w-full" />
-            </Link>
-          ))}
-        </nav>
+        {/* NAVIGATION LINKS REMOVED HERE */}
 
+        {/* AUTH SECTION */}
         <div className="hidden md:flex items-center gap-3 min-w-[200px] justify-end">
           <ClerkLoading>
             <div className="h-9 w-24 bg-[#5a3030]/50 rounded animate-pulse" />
@@ -86,7 +77,6 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
 
           <ClerkLoaded>
             <SignedIn>
-              {/* FIX: Added 'Go to Dashboard' button when logged in */}
               <div className="flex items-center gap-4">
                 <Link href="/dashboard">
                   <Button className="bg-[#ff8080] hover:bg-[#ff9999] text-[#1a0808] border-none font-bold rounded-full px-6 transition-all shadow-lg shadow-[#ff8080]/20">
@@ -102,6 +92,7 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
           </ClerkLoaded>
         </div>
 
+        {/* MOBILE TOGGLE */}
         <button
           className="md:hidden text-[#ebd0d0] hover:text-white transition-colors"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -118,11 +109,8 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
         )}
       >
         <div className="bg-[#2d1010]/95 backdrop-blur-md px-6 py-4 space-y-4 border-b border-[#5a3030]/30">
-          {["For candidates", "For recruiters", "How it works"].map((item) => (
-            <Link key={item} href="#" className="block text-[#ebd0d0] hover:text-white transition-colors">
-              {item}
-            </Link>
-          ))}
+          {/* NAVIGATION LINKS REMOVED HERE */}
+          
           <div className="flex flex-col gap-3 pt-2">
             <ClerkLoaded>
               <SignedIn>
