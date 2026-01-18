@@ -1,23 +1,10 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from db import engine, Base
-import os
-
 from routes.candidates import router as candidates_router
 from routes.assessments import router as assessments_router
-from routes.jobs import router as jobs_router
+from db import engine, Base
 
 app = FastAPI(title="HIREASSISTANT")
-
-# --- STATIC FILES SETUP ---
-UPLOAD_DIR = "uploads"
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
-
-# This enables http://localhost:8000/uploads/filename.pdf
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads") 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,7 +15,6 @@ app.add_middleware(
 
 app.include_router(candidates_router, prefix="/api", tags=["candidates"])
 app.include_router(assessments_router, prefix="/api", tags=["assessments"])
-app.include_router(jobs_router, prefix="/api", tags=["jobs"])
 
 @app.on_event("startup")
 def startup_event():
@@ -36,8 +22,4 @@ def startup_event():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "system": "HIREASSISTANT"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+    return {"status": "ok"}

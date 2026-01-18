@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Test Harness</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Backend API Test Harness</h1>
+
+    <section id="auth-test">
+        <h2>1. Auth Test</h2>
+        <label for="jwtToken">JWT Token:</label>
+        <textarea id="jwtToken" rows="3"></textarea>
+        <button onclick="testAuth()">Test Auth</button>
+        <pre id="authResult"></pre>
+    </section>
+
+    <section id="create-candidate">
+        <h2>2. Create Candidate</h2>
+        <label for="candidateName">Name:</label>
+        <input type="text" id="candidateName">
+        <label for="candidateEmail">Email:</label>
+        <input type="text" id="candidateEmail">
+        <label for="candidatePhone">Phone:</label>
+        <input type="text" id="candidatePhone">
+        <label for="blueprintId">Blueprint ID:</label>
+        <input type="text" id="blueprintId">
+        <button onclick="createCandidate()">Create Candidate</button>
+        <pre id="createResult"></pre>
+    </section>
+
+    <section id="candidate-flow">
+        <h2>3. Candidate Flow Test</h2>
+        <label for="candidateIdCandidate">Candidate ID:</label>
+        <input type="text" id="candidateIdCandidate">
+        <label for="resumeText">Resume Text:</label>
+        <textarea id="resumeText" rows="5"></textarea>
+        <button onclick="uploadResume()">Upload Resume</button>
+        <button onclick="getCandidateStatus()">Get Candidate Status</button>
+        <pre id="candidateResult"></pre>
+    </section>
+
+    <section id="coding-round">
+        <h2>4. Coding Round Test</h2>
+        <label for="candidateIdCoding">Candidate ID:</label>
+        <input type="text" id="candidateIdCoding">
+        <label for="roundIndex">Round Index:</label>
+        <input type="number" id="roundIndex">
+        <label for="language">Language:</label>
+        <select id="language">
+            <option value="python">Python</option>
+            <option value="cpp">C++</option>
+            <option value="java">Java</option>
+        </select>
+        <label for="code">Code:</label>
+        <textarea id="code" rows="10"></textarea>
+        <button onclick="submitCodingRound()">Submit Coding Round</button>
+        <pre id="codingResult"></pre>
+    </section>
+
+    <section id="hr-decision">
+        <h2>5. HR / Decision Test</h2>
+        <label for="candidateIdHr">Candidate ID:</label>
+        <input type="text" id="candidateIdHr">
+        <button onclick="getDecision()">Get Decision</button>
+        <button onclick="getDecisionExplanation()">Get Rule Explanation</button>
+        <button onclick="getProctoringLogs()">Get Proctoring Logs</button>
+        <pre id="hrResult"></pre>
+    </section>
+
+    <script src="script.js"></script>
+</body>
+</html>

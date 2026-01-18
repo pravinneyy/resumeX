@@ -1,6 +1,7 @@
-import docx
-import pdfplumber
 import re
+import pdfplumber
+import docx
+import os
 
 # Central Skill Database
 SKILL_DB = [
@@ -11,20 +12,29 @@ SKILL_DB = [
     "machine learning", "tensorflow", "pytorch", "pandas", "numpy", "opencv"
 ]
 
-def extract_text_from_file(filepath):
+def extract_text_from_file(file_bytes, filename):
     text = ""
     try:
-        if filepath.endswith('.pdf'):
-            with pdfplumber.open(filepath) as pdf:
+        if filename.endswith('.pdf'):
+            # Save bytes to temp file to read with pdfplumber
+            with open("temp.pdf", "wb") as f:
+                f.write(file_bytes)
+            with pdfplumber.open("temp.pdf") as pdf:
                 for page in pdf.pages:
                     extract = page.extract_text()
                     if extract: text += extract + "\n"
-        elif filepath.endswith('.docx'):
-            doc = docx.Document(filepath)
+        elif filename.endswith('.docx'):
+            with open("temp.docx", "wb") as f:
+                f.write(file_bytes)
+            doc = docx.Document("temp.docx")
             for para in doc.paragraphs:
                 text += para.text + "\n"
     except Exception as e:
         print(f"Error parsing file: {e}")
+    finally:
+        # Cleanup temp files
+        if os.path.exists("temp.pdf"): os.remove("temp.pdf")
+        if os.path.exists("temp.docx"): os.remove("temp.docx")
     return text
 
 def parse_resume_sections(text):
@@ -38,7 +48,6 @@ def parse_resume_sections(text):
     }
     
     current_section = "Personal"
-    
     headers = {
         "EXPERIENCE": "Experience", "WORK HISTORY": "Experience", "EMPLOYMENT": "Experience",
         "EDUCATION": "Education", "QUALIFICATIONS": "Education",
@@ -76,3 +85,9 @@ def parse_resume_sections(text):
         "education": sections["Education"][:5],
         "skills": list(found_skills)
     }
+
+async def extract_resume_info(file, filename):
+    content = await file.read()
+    text = extract_text_from_file(content, filename)
+    parsed_data = parse_resume_sections(text)
+    return parsed_data

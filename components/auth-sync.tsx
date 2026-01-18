@@ -10,13 +10,12 @@ export function AuthSync() {
 
   useEffect(() => {
     if (isLoaded && user) {
-      // Determine role based on where they are navigating
       let role = "User"
       if (pathname.startsWith("/recruiter")) role = "Recruiter"
       if (pathname.startsWith("/candidate")) role = "Candidate"
 
-      // Send "I am here" signal to Backend
-      fetch("http://127.0.0.1:5000/api/users/sync", {
+      // CHANGED PORT TO 8000
+      fetch("http://127.0.0.1:8000/api/users/sync", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -29,5 +28,5 @@ export function AuthSync() {
     }
   }, [isLoaded, user, pathname])
 
-  return null // This component renders nothing
+  return null
 }

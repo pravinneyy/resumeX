@@ -40,7 +40,8 @@ export default function PostJobPage() {
     }
 
     try {
-      const response = await fetch("http://127.0.0.1:5000/api/jobs", {
+      // FIX: Changed Port from 5000 to 8000
+      const response = await fetch("http://127.0.0.1:8000/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(jobData),
@@ -57,7 +58,7 @@ export default function PostJobPage() {
       }
     } catch (error) {
       console.error("Error:", error)
-      alert("Error connecting to the server. Is the Python backend running?")
+      alert("Error connecting to the server. Is the Backend running on Port 8000?")
     } finally {
       setLoading(false)
     }
