@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react" // 👈 Added this import
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
@@ -9,12 +10,17 @@ import { BarChart3, Users, Zap, Search, ArrowRight, Lock } from "lucide-react"
 export default function RecruiterPage() {
   const router = useRouter()
 
+  // 👇 ADDED THIS: Forces the page to scroll to the top on load
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [])
+
   const handleAuthRedirect = (mode: "signin" | "signup") => {
     router.push(`/?modal=${mode}`)
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-[#ff8080] selection:text-black">
+    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-[#ff8080] selection:text-black overflow-y-auto">
       <Header 
         onSignInClick={() => handleAuthRedirect("signin")} 
         onSignUpClick={() => handleAuthRedirect("signup")} 

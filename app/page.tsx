@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useLayoutEffect, useEffect } from "react"
+import { useState, useLayoutEffect, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useUser, SignIn, SignUp } from "@clerk/nextjs"
-import { User, Briefcase } from "lucide-react"
+import { User, Briefcase, ArrowLeft } from "lucide-react"
 
 // Component Imports
 import { Header } from "@/components/header"
@@ -20,7 +20,6 @@ import { CursorGlow } from "@/components/cursor-glow"
 import { cn } from "@/lib/utils"
 
 export default function Home() {
-  // --- STATE MANAGEMENT ---
   const [activeModal, setActiveModal] = useState<"signin" | "signup" | null>(null)
   const [selectedRole, setSelectedRole] = useState<"candidate" | "recruiter" | null>(null)
   
@@ -28,20 +27,30 @@ export default function Home() {
   const router = useRouter()
   const isModalOpen = activeModal !== null
 
-  // --- HELPERS ---
-  const closeModals = () => {
-    setActiveModal(null)
-    setSelectedRole(null)
-  }
+  // Optimized Open Handler to prevent double-clicks
+  const handleOpenModal = useCallback((type: "signin" | "signup") => {
+    setSelectedRole(null) // Reset role to show Step 1
+    setActiveModal(type)
+  }, [])
 
-  // Helper to construct the redirect URL based on role
+  const closeModals = useCallback(() => {
+    setActiveModal(null)
+    setTimeout(() => setSelectedRole(null), 300) 
+  }, [])
+
   const getRedirectUrl = () => {
     return selectedRole ? `/auth/sync?role=${selectedRole}` : "/auth/sync"
   }
 
-  // --- EFFECTS ---
+  // Prevent scroll when modal is open
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+  }, [isModalOpen])
 
-  // 1. Redirect if already logged in (unless explicitly on the dashboard)
   useEffect(() => {
     if (isLoaded && isSignedIn) {
       const params = new URLSearchParams(window.location.search)
@@ -51,17 +60,6 @@ export default function Home() {
     }
   }, [isLoaded, isSignedIn, router])
 
-  // 2. Handle URL parameters to open modals externally
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const searchParams = new URLSearchParams(window.location.search)
-      if (searchParams.get("modal") === "signup") {
-        setActiveModal("signup")
-      }
-    }
-  }, [])
-
-  // 3. Scroll restoration fix
   useLayoutEffect(() => {
     if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
@@ -69,24 +67,43 @@ export default function Home() {
     window.scrollTo(0, 0);
   }, []);
 
+  const clerkAppearance = {
+    variables: {
+      colorPrimary: "#ff8080", 
+      colorBackground: "#1a0505", 
+      colorText: "#ffffff",
+      colorTextSecondary: "#b8a0a0",
+      colorInputBackground: "#2d1010",
+      colorInputText: "#ffffff",
+      borderRadius: "0.75rem",
+    },
+    elements: {
+      card: "bg-[#1a0505] border border-[#5a3030] shadow-2xl",
+      socialButtonsBlockButton: "bg-[#2d1010] border border-[#5a3030] hover:bg-[#3a1515] !text-white",
+      socialButtonsBlockButtonText: "!text-white font-medium",
+      socialButtonsBlockButtonArrow: "!text-white",
+      formFieldLabel: "text-[#d0b8b8]",
+      formFieldInput: "bg-[#0f0505] border-[#5a3030] text-white focus:border-[#ff8080]",
+      formButtonPrimary: "bg-[#ff8080] hover:bg-[#ff9999] text-[#1a0808] font-bold",
+      footerActionLink: "text-[#ff8080] hover:text-[#ff9999]",
+      dividerLine: "bg-[#5a3030]",
+      dividerText: "text-[#5a3030]",
+    }
+  }
+
   return (
-    <main className="min-h-screen relative overflow-hidden">
-      {/* Background FX */}
+    <main className="min-h-screen relative">
       <div className="fixed inset-0 z-0 pointer-events-none">
          <BackgroundElements />
       </div>
       <CursorGlow />
 
-      {/* Main Content Layer */}
       <div className="relative z-10">
         <Header 
-          onSignInClick={() => setActiveModal("signin")} 
-          onSignUpClick={() => setActiveModal("signup")} 
+          onSignInClick={() => handleOpenModal("signin")} 
+          onSignUpClick={() => handleOpenModal("signup")} 
         />
-        
-        {/* The Hero Section now handles its own navigation to /for-candidates etc. */}
         <div className="snap-section"><HeroSection /></div>
-        
         <div className="snap-section"><FeaturesSection /></div>
         <div className="snap-section"><MissionSection /></div>
         <div className="snap-section"><TestimonialsSection /></div>
@@ -96,132 +113,80 @@ export default function Home() {
         <div className="snap-section"><Footer /></div>
       </div>
 
-      {/* --- MODAL LAYER --- */}
+      {/* MODAL LAYER */}
       <div
         className={cn(
-          "fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] transition-all duration-300",
+          "fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[9999] transition-all duration-300",
           isModalOpen ? "opacity-100 visible" : "opacity-0 invisible pointer-events-none"
         )}
         onClick={closeModals}
       >
         <div
           className={cn(
-            "relative w-full max-w-lg transform transition-all duration-300 p-4", 
+            "relative w-full max-w-md transform transition-all duration-500 ease-out p-4", 
             isModalOpen ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-8"
           )}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* === SIGN IN MODAL === */}
-          {activeModal === "signin" && (
-            <div className="flex flex-col items-center">
-              {/* Optional: Tiny Role Switcher inside Login */}
-              {!selectedRole && (
-                <div className="mb-6 bg-[#2d1010] p-1 rounded-lg border border-[#5a3030] flex gap-1">
-                  <button 
+          <div className="bg-[#1a0505] border border-[#5a3030] rounded-3xl shadow-2xl overflow-hidden">
+            
+            {selectedRole && (
+              <div className="absolute top-6 left-6 z-20">
+                <button 
+                  onClick={() => setSelectedRole(null)}
+                  className="flex items-center gap-1 text-xs font-medium text-[#b8a0a0] hover:text-[#ff8080]"
+                >
+                  <ArrowLeft className="w-3 h-3" /> Change Role
+                </button>
+              </div>
+            )}
+
+            {!selectedRole ? (
+              <div className="p-10 text-center animate-fade-in">
+                <h2 className="text-3xl font-bold text-white mb-2">
+                  {activeModal === "signin" ? "Welcome Back" : "Join ResumeX"}
+                </h2>
+                <p className="text-[#b8a0a0] mb-8 text-sm">Please select your portal</p>
+                <div className="grid gap-4">
+                  <button
                     onClick={() => setSelectedRole("candidate")}
-                    className="px-4 py-2 text-sm text-[#d0b8b8] hover:text-white hover:bg-[#3a1515] rounded-md transition-colors"
+                    className="group flex items-center gap-4 p-4 rounded-2xl bg-[#2d1010] border border-[#5a3030] hover:border-[#ff8080] transition-all"
                   >
-                    I'm a Candidate
+                    <div className="w-12 h-12 rounded-full bg-[#3a1515] flex items-center justify-center group-hover:bg-[#ff8080]">
+                      <User className="w-6 h-6 text-[#ff8080] group-hover:text-black" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-white font-semibold text-lg">Candidate</h3>
+                      <p className="text-[#806060] text-xs">Manage resume & applications</p>
+                    </div>
                   </button>
-                  <div className="w-px bg-[#5a3030] my-2"></div>
-                  <button 
+
+                  <button
                     onClick={() => setSelectedRole("recruiter")}
-                    className="px-4 py-2 text-sm text-[#d0b8b8] hover:text-white hover:bg-[#3a1515] rounded-md transition-colors"
+                    className="group flex items-center gap-4 p-4 rounded-2xl bg-[#2d1010] border border-[#5a3030] hover:border-[#ff8080] transition-all"
                   >
-                    I'm a Recruiter
+                    <div className="w-12 h-12 rounded-full bg-[#3a1515] flex items-center justify-center group-hover:bg-[#ff8080]">
+                      <Briefcase className="w-6 h-6 text-[#ff8080] group-hover:text-black" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="text-white font-semibold text-lg">Recruiter</h3>
+                      <p className="text-[#806060] text-xs">Post jobs & screen talent</p>
+                    </div>
                   </button>
                 </div>
-              )}
-
-              {/* Clerk Sign In Component */}
-              <SignIn 
-                routing="hash" 
-                forceRedirectUrl={getRedirectUrl()}
-                appearance={{
-                  elements: {
-                    card: "bg-[#1a0505] border border-[#5a3030]",
-                    headerTitle: "text-white",
-                    headerSubtitle: "text-[#b8a0a0]",
-                    socialButtonsBlockButton: "bg-[#2d1010] border-[#5a3030] text-white hover:bg-[#3a1515]",
-                    formFieldLabel: "text-[#d0b8b8]",
-                    formFieldInput: "bg-[#0f0505] border-[#5a3030] text-white",
-                    footerActionLink: "text-[#ff8080] hover:text-[#ff9999]"
-                  }
-                }}
-              />
-            </div>
-          )}
-
-          {/* === SIGN UP MODAL === */}
-          {activeModal === "signup" && (
-            <>
-              {/* Step 1: Choose Role */}
-              {!selectedRole ? (
-                 <div className="bg-[#1a0505] border border-[#5a3030] p-8 rounded-2xl shadow-2xl w-full text-center">
-                  <h2 className="text-3xl font-bold text-white mb-2">Join ResumeX</h2>
-                  <p className="text-[#d0b8b8] mb-8">How do you plan to use the platform?</p>
-                  
-                  <div className="grid gap-4">
-                    <button
-                      onClick={() => setSelectedRole("candidate")}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-[#2d1010] border border-[#5a3030] hover:border-[#ff8080] hover:bg-[#3a1515] transition-all group text-left"
-                    >
-                      <div className="w-12 h-12 rounded-full bg-[#3a1515] flex items-center justify-center group-hover:bg-[#ff8080] transition-colors">
-                        <User className="w-6 h-6 text-[#ff8080] group-hover:text-[#2a1010]" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-lg">I'm a Candidate</h3>
-                        <p className="text-[#b8a0a0] text-sm">Find jobs & get AI feedback</p>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => setSelectedRole("recruiter")}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-[#2d1010] border border-[#5a3030] hover:border-[#ff8080] hover:bg-[#3a1515] transition-all group text-left"
-                    >
-                      <div className="w-12 h-12 rounded-full bg-[#3a1515] flex items-center justify-center group-hover:bg-[#ff8080] transition-colors">
-                        <Briefcase className="w-6 h-6 text-[#ff8080] group-hover:text-[#2a1010]" />
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold text-lg">I'm a Recruiter</h3>
-                        <p className="text-[#b8a0a0] text-sm">Post jobs & screen talent</p>
-                      </div>
-                    </button>
-                  </div>
-
-                  <div className="mt-8 pt-6 border-t border-[#5a3030]">
-                      <p className="text-[#b8a0a0] text-sm">
-                        Already have an account?{" "}
-                        <button onClick={() => setActiveModal("signin")} className="text-[#ff8080] hover:underline font-medium">
-                          Sign in
-                        </button>
-                      </p>
-                  </div>
+              </div>
+            ) : (
+              <div className="p-8 bg-[#1a0505] mt-4">
+                <div className="flex justify-center w-full">
+                  {activeModal === "signin" ? (
+                    <SignIn routing="hash" forceRedirectUrl={getRedirectUrl()} appearance={clerkAppearance} />
+                  ) : (
+                    <SignUp routing="hash" forceRedirectUrl={getRedirectUrl()} unsafeMetadata={{ role: selectedRole }} appearance={clerkAppearance} />
+                  )}
                 </div>
-              ) : (
-                /* Step 2: Clerk Sign Up Form */
-                <div className="flex justify-center">
-                  <SignUp 
-                    routing="hash" 
-                    forceRedirectUrl={getRedirectUrl()}
-                    fallbackRedirectUrl={getRedirectUrl()}
-                    unsafeMetadata={{ role: selectedRole }}
-                    appearance={{
-                      elements: {
-                        card: "bg-[#1a0505] border border-[#5a3030]",
-                        headerTitle: "text-white",
-                        headerSubtitle: "text-[#b8a0a0]",
-                        socialButtonsBlockButton: "bg-[#2d1010] border-[#5a3030] text-white hover:bg-[#3a1515]",
-                        formFieldLabel: "text-[#d0b8b8]",
-                        formFieldInput: "bg-[#0f0505] border-[#5a3030] text-white",
-                        footerActionLink: "text-[#ff8080] hover:text-[#ff9999]"
-                      }
-                    }}
-                  />
-                </div>
-              )}
-            </>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </main>
