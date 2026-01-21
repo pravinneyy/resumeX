@@ -1,43 +1,43 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from fastapi.staticfiles import StaticFiles  # <--- NEW IMPORT
 from fastapi.middleware.cors import CORSMiddleware
 from db import engine, Base
+from routes import auth, jobs, candidates, assessments
+from contextlib import asynccontextmanager
 import os
 
-from routes.candidates import router as candidates_router
-from routes.assessments import router as assessments_router
-from routes.jobs import router as jobs_router
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    # Ensure uploads directory exists on startup
+    if not os.path.exists("uploads"):
+        os.makedirs("uploads")
+    yield
 
-app = FastAPI(title="HIREASSISTANT")
+app = FastAPI(lifespan=lifespan)
 
-# --- STATIC FILES SETUP ---
-UPLOAD_DIR = "uploads"
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
-
-# This enables http://localhost:8000/uploads/filename.pdf
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads") 
-
+# CORS Setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-app.include_router(candidates_router, prefix="/api", tags=["candidates"])
-app.include_router(assessments_router, prefix="/api", tags=["assessments"])
-app.include_router(jobs_router, prefix="/api", tags=["jobs"])
+# NEW: Serve the 'uploads' folder so PDFs are accessible
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-@app.on_event("startup")
-def startup_event():
-    Base.metadata.create_all(bind=engine)
+# Register Routes
+app.include_router(auth.router, prefix="/api", tags=["Auth"])
+app.include_router(jobs.router, prefix="/api", tags=["Jobs"])
+app.include_router(candidates.router, prefix="/api", tags=["Candidates"])
+app.include_router(assessments.router, prefix="/api", tags=["Assessments"])
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "system": "HIREASSISTANT"}
+@app.get("/")
+def home():
+    return {"message": "ResumeX Backend Running"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Users, Kanban, ChevronLeft, ClipboardList, BarChart3, Sparkles } from "lucide-react"
+import { LayoutDashboard, Users, Kanban, ChevronLeft, BarChart3, Sparkles } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -13,10 +13,10 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { label: "Recruit", icon: ClipboardList, href: "/recruiter/recruit" },
+  // REMOVED: "Recruit" item (consolidated into Dashboard)
   
-  // CHANGED "Dashboard" -> "Recruiter"
-  { label: "Recruiter", icon: LayoutDashboard, href: "/recruiter" },
+  // CHANGED: Label updated to "Recruiter Dashboard"
+  { label: "Dashboard", icon: LayoutDashboard, href: "/recruiter" },
   
   { label: "Candidates", icon: Users, href: "/recruiter/candidates" },
   { label: "Analytics", icon: BarChart3, href: "/recruiter/analytics" },
@@ -45,7 +45,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navItems.map((item, index) => {
-            const isActive = pathname === item.href
+            // Updated active check to handle sub-routes (e.g., keeping dashboard active when in job details)
+            // If you want strict matching only, use: pathname === item.href
+            const isActive = pathname === item.href || (item.href !== "/recruiter" && pathname.startsWith(item.href))
+            
             const NavLink = (
               <Link
                 key={item.href}
@@ -111,4 +114,4 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </aside>
     </TooltipProvider>
   )
-} 
+}

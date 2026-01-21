@@ -1,96 +1,73 @@
-from sqlalchemy import Column, String, Integer, Float, DateTime, ForeignKey, Text, Enum, JSON
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from sqlalchemy.sql import func
 from db import Base
-from enums import CandidateState
 
-# --- 1. CANDIDATE MODEL ---
-class Candidate(Base):
-    __tablename__ = "candidates"
-    
-    id = Column(String, primary_key=True)
+class Recruiter(Base):
+    __tablename__ = "recruiters"
+    id = Column(String, primary_key=True) # Clerk ID
+    email = Column(String)
     name = Column(String)
-    email = Column(String, unique=True)
-    phone = Column(String)
-    resume_url = Column(String, nullable=True)
-    
-    # NEW: Store skills as a comma-separated string
-    skills = Column(String, nullable=True) 
+    jobs = relationship("Job", back_populates="recruiter")
 
-    # State Machine Integration
-    state = Column(Enum(CandidateState), default=CandidateState.REGISTERED)
-    current_round_index = Column(Integer, default=0)
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    # Relationships
-    state_history = relationship("CandidateStateHistory", back_populates="candidate")
-    assessments = relationship("Assessment", back_populates="candidate")
-    applications = relationship("Application", back_populates="candidate")
-
-# --- 2. CANDIDATE HISTORY ---
-class CandidateStateHistory(Base):
-    __tablename__ = "candidate_state_history"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    candidate_id = Column(String, ForeignKey("candidates.id"))
-    old_state = Column(Enum(CandidateState), nullable=True)
-    new_state = Column(Enum(CandidateState))
-    changed_by = Column(String)
-    reason = Column(Text, nullable=True)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    
-    candidate = relationship("Candidate", back_populates="state_history")
-
-# --- 3. ASSESSMENT ---
-class Assessment(Base):
-    __tablename__ = "assessments"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    candidate_id = Column(String, ForeignKey("candidates.id"))
-    round_index = Column(Integer)
-    technical_score = Column(Float, nullable=True)
-    code_submission = Column(Text, nullable=True)
-    passed = Column(String)
-    
-    candidate = relationship("Candidate", back_populates="assessments")
-
-# --- 4. PROCTORING ---
-class ProctoringLog(Base):
-    __tablename__ = "proctoring_logs"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    candidate_id = Column(String, ForeignKey("candidates.id"))
-    event_type = Column(String)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-
-# --- 5. JOB MODEL ---
+# ... (Keep your existing Job, Candidate, Application, Assessment classes) ...
+# Ensure Job has this relationship:
+# recruiter = relationship("Recruiter", back_populates="jobs")
 class Job(Base):
     __tablename__ = "jobs"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True)
     title = Column(String)
     company = Column(String)
     location = Column(String)
     salary = Column(String)
     type = Column(String)
     skills = Column(String)
-    recruiter_id = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    recruiter_id = Column(String, ForeignKey("recruiters.id"))
     
+    recruiter = relationship("Recruiter", back_populates="jobs")
     applications = relationship("Application", back_populates="job")
+    # New: Assessment relationship
+    assessment = relationship("JobAssessment", back_populates="job", uselist=False)
 
-# --- 6. APPLICATION MODEL ---
+class Candidate(Base):
+    __tablename__ = "candidates"
+    id = Column(String, primary_key=True) # Clerk ID
+    name = Column(String)
+    email = Column(String)
+    phone = Column(String, nullable=True)
+    resume_url = Column(String)
+    parsed_summary = Column(Text)
+    skills = Column(String)
+    
+    applications = relationship("Application", back_populates="candidate")
+
 class Application(Base):
     __tablename__ = "applications"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, primary_key=True, index=True)
     job_id = Column(Integer, ForeignKey("jobs.id"))
     candidate_id = Column(String, ForeignKey("candidates.id"))
     status = Column(String, default="Applied")
-    applied_at = Column(DateTime, default=datetime.utcnow)
-
-    # Relationships
+    applied_at = Column(DateTime(timezone=True), server_default=func.now())
+    
     job = relationship("Job", back_populates="applications")
     candidate = relationship("Candidate", back_populates="applications")
+
+class JobAssessment(Base):
+    __tablename__ = "job_assessments"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"))
+    title = Column(String)
+    duration_minutes = Column(Integer)
+    questions = Column(JSON) # Stores list of questions
+    
+    job = relationship("Job", back_populates="assessment")
+
+class AssessmentSubmission(Base):
+    __tablename__ = "assessment_submissions"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"))
+    candidate_id = Column(String, ForeignKey("candidates.id"))
+    code = Column(Text)
+    language = Column(String)
+    score = Column(Integer)
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
