@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Sparkles, User, Briefcase } from "lucide-react"
 import { ParticleBackground } from "@/components/particle-background"
-import Link from "next/link" // Necessary for navigation
+import Link from "next/link"
 
 export function HeroSection() {
   return (
@@ -47,19 +47,12 @@ export function HeroSection() {
           </p>
 
           <div className="flex flex-col items-center justify-center gap-6">
-            {/* Primary Sign In Button */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button
-                size="lg"
-                className="bg-[#e8a0a0] text-[#1a0808] hover:bg-[#f0c0c0] hover:text-[#1a0808] px-8 py-6 text-lg rounded-full transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#e8a0a0]/40 group"
-              >
-                Sign in
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </div>
+            
+            {/* REMOVED THE CENTRAL SIGN IN BUTTON HERE */}
 
-            {/* New Perspective Links: Candidates & Recruiters */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full border-t border-[#5a3030]/30 pt-8">
+            {/* Perspective Links: Candidates & Recruiters */}
+            {/* Removed border-t (top border) since there is nothing above it now */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full pt-4">
               <Link href="/for-candidates">
                 <Button
                   variant="outline"
