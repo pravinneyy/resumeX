@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Users, Briefcase, BarChart3 } from "lucide-react" // Added BarChart3
+import { Plus, Users, Briefcase, BarChart3, Loader2 } from "lucide-react"
 
 export default function RecruiterDashboard() {
   const { user, isLoaded } = useUser()
@@ -30,8 +30,16 @@ export default function RecruiterDashboard() {
   useEffect(() => {
     if (isLoaded && user) {
         fetch("http://127.0.0.1:8000/api/jobs")
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to fetch jobs")
+                return res.json()
+            })
+            // FIX: Ensure data is always an array
             .then(data => setJobs(Array.isArray(data) ? data : []))
+            .catch(err => {
+                console.error("Error fetching jobs:", err)
+                setJobs([]) // Fallback to empty list
+            })
     }
   }, [isLoaded, user])
 
@@ -50,15 +58,16 @@ export default function RecruiterDashboard() {
 
         if (res.ok) {
             setOpen(false)
-            alert("Job Posted!")
+            alert("Job Posted Successfully!")
             window.location.reload()
         } else {
-            const errorData = await res.json()
-            console.error("Validation Error:", errorData) 
-            alert("Failed to create job.")
+            const errorText = await res.text()
+            console.error("Failed to create job:", errorText)
+            alert("Failed to create job. Check console for details.")
         }
     } catch (error) {
-        console.error(error)
+        console.error("Network error:", error)
+        alert("Network error occurred.")
     }
   }
 
@@ -71,12 +80,10 @@ export default function RecruiterDashboard() {
             </div>
             
             <div className="flex gap-2">
-                {/* NEW: Analytics Button */}
                 <Button variant="outline" className="gap-2" onClick={() => router.push("/recruiter/analytics")}>
                     <BarChart3 className="w-4 h-4"/> Global Analytics
                 </Button>
 
-                {/* POST JOB MODAL */}
                 <Dialog open={open} onOpenChange={setOpen}>
                     <DialogTrigger asChild>
                         <Button className="gap-2"><Plus className="w-4 h-4"/> Post New Job</Button>

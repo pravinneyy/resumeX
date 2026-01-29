@@ -1,22 +1,24 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles  # <--- NEW IMPORT
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from db import engine, Base
-from routes import auth, jobs, candidates, assessments
 from contextlib import asynccontextmanager
 import os
+
+from db import engine, Base
+import models 
+
+# FIX: Import 'applications'
+from routes import auth, jobs, candidates, assessments, applications
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    # Ensure uploads directory exists on startup
     if not os.path.exists("uploads"):
         os.makedirs("uploads")
     yield
 
 app = FastAPI(lifespan=lifespan)
 
-# CORS Setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"], 
@@ -25,14 +27,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# NEW: Serve the 'uploads' folder so PDFs are accessible
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Register Routes
-app.include_router(auth.router, prefix="/api", tags=["Auth"])
+# --- ROUTES ---
+app.include_router(auth.router, prefix="/api/users", tags=["Auth"])
+
+# FIX: Use prefix="/api" because jobs.py already has "/jobs"
 app.include_router(jobs.router, prefix="/api", tags=["Jobs"])
+
 app.include_router(candidates.router, prefix="/api", tags=["Candidates"])
+
+# FIX: Use prefix="/api" because assessments.py already has "/assessments"
 app.include_router(assessments.router, prefix="/api", tags=["Assessments"])
+
+# FIX: Register Applications Router
+app.include_router(applications.router, prefix="/api", tags=["Applications"])
 
 @app.get("/")
 def home():

@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db import get_db
-from models import Job, Application, Candidate, AssessmentSubmission
+from models import Job, Application, Recruiter, JobAssessment
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import Optional, List
+import json
 
 router = APIRouter()
 
-# Schema for creating a job
 class JobCreate(BaseModel):
     title: str
     company: str
@@ -15,71 +15,110 @@ class JobCreate(BaseModel):
     salary: str
     type: str
     skills: str
-    recruiter_id: str
+    recruiter_id: Optional[str] = "user_default" 
 
-# 1. Post a Job
 @router.post("/jobs")
 def create_job(job: JobCreate, db: Session = Depends(get_db)):
+    recruiter_id = job.recruiter_id or "user_default"
+    recruiter = db.query(Recruiter).filter(Recruiter.id == recruiter_id).first()
+    
+    if not recruiter:
+        dummy = Recruiter(id=recruiter_id, email="test@example.com", company_name=job.company)
+        db.add(dummy)
+        db.commit()
+    else:
+        recruiter.company_name = job.company
+        db.commit()
+
     new_job = Job(
-        title=job.title,
-        company=job.company,
+        title=job.title, 
+        description=f"{job.type} opportunity at {job.company}.",
         location=job.location,
-        salary=job.salary,
-        type=job.type,
-        skills=job.skills,
-        recruiter_id=job.recruiter_id
+        salary_range=job.salary,
+        requirements=job.skills,
+        recruiter_id=recruiter_id
     )
     db.add(new_job)
     db.commit()
     db.refresh(new_job)
-    return new_job
+    return {"message": "Job created", "id": new_job.id}
 
-# 2. Get All Jobs
 @router.get("/jobs")
 def get_jobs(db: Session = Depends(get_db)):
-    return db.query(Job).all()
+    try:
+        jobs = db.query(Job).all()
+        if not jobs: return []
 
-# 3. Get Single Job
-@router.get("/jobs/{job_id}")
-def get_job(job_id: int, db: Session = Depends(get_db)):
-    job = db.query(Job).filter(Job.id == job_id).first()
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
+        return [{
+            "id": j.id,
+            "title": j.title,
+            "location": j.location or "Remote",
+            "salary": j.salary_range or "Competitive",
+            "type": "Full-time",
+            "company": j.recruiter.company_name if j.recruiter else "Unknown Company"
+        } for j in jobs]
+    except Exception as e:
+        print(f"Error fetching jobs: {e}")
+        return [] 
 
-# 4. Get Applications for a Job (Includes AI Data & Scores)
 @router.get("/jobs/{job_id}/applications")
 def get_job_applications(job_id: int, db: Session = Depends(get_db)):
-    # Fetch applications for this job
-    apps = db.query(Application).filter(Application.job_id == job_id).all()
-    
-    result = []
-    for app in apps:
-        # Fetch the score if they have submitted the exam
-        submission = db.query(AssessmentSubmission).filter(
-            AssessmentSubmission.job_id == job_id,
-            AssessmentSubmission.candidate_id == app.candidate_id
-        ).first()
+    try:
+        apps = db.query(Application).filter(Application.job_id == job_id).all()
+        if not apps: return []
 
-        score = submission.score if submission else 0
+        def parse_skills(app):
+            if not app.candidate or not app.candidate.skills: return []
+            skills = app.candidate.skills
+            if skills.startswith("["): 
+                try: return json.loads(skills)
+                except: return [skills]
+            return skills.split(",")
 
-        # We serialize the candidate data manually to include the AI fields & Score
-        candidate_data = {
+        return [{
             "id": app.id,
-            "job_id": app.job_id,
             "candidate_id": app.candidate_id,
+            "name": app.candidate.name if app.candidate else "Unknown",
+            "email": app.candidate.email if app.candidate else "",
+            "skills": parse_skills(app),
+            "ai_reasoning": app.notes,
             "status": app.status,
-            "applied_at": app.applied_at,
-            # Flatten Candidate Info
-            "candidate_name": app.candidate.name if app.candidate else "Unknown",
-            "candidate_email": app.candidate.email if app.candidate else "No Email",
-            # AI FIELDS
-            "candidate_skills": app.candidate.skills if app.candidate else "Pending...",
-            "candidate_summary": app.candidate.parsed_summary if app.candidate else "Analysis in progress...",
-            "resume_url": app.candidate.resume_url if app.candidate else None,
-            # NEW: SCORE FIELD
-            "score": score
-        }
-        result.append(candidate_data)
+            "score": app.final_grade or 0, 
+            "resume_url": app.candidate.resume_url if app.candidate else ""
+        } for app in apps]
+    except Exception:
+        return []
+
+# --- FIX: Recursive JSON Parser (Handles Double Encoding) ---
+@router.get("/jobs/{job_id}/assessment")
+def get_job_assessment(job_id: int, db: Session = Depends(get_db)):
+    assessment = db.query(JobAssessment).filter(JobAssessment.job_id == job_id).first()
+    
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
         
-    return result
+    questions_data = assessment.questions
+
+    # RECURSIVE DECODING LOOP
+    # This will unwrap "String" -> "String" -> "List" safely
+    for _ in range(3): # Try up to 3 times
+        if isinstance(questions_data, str):
+            try:
+                parsed = json.loads(questions_data)
+                questions_data = parsed
+            except:
+                break # Stop if parsing fails
+        else:
+            break # Stop if it's already a list/dict
+
+    # Final Safety Check
+    if not isinstance(questions_data, list):
+        print(f"WARNING: Questions data is not a list! Type: {type(questions_data)}")
+        questions_data = []
+
+    return {
+        "id": assessment.id,
+        "title": assessment.title,
+        "duration_minutes": assessment.duration_minutes,
+        "questions": questions_data
+    }

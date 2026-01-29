@@ -30,8 +30,13 @@ export default function CandidateJobsPage() {
         fetch(`http://127.0.0.1:8000/api/candidate/applications?candidateId=${user.id}`)
             .then(res => res.json())
             .then(data => {
-                const ids = new Set<number>(data.map((app: any) => Number(app.job_id)))
-                setAppliedJobIds(ids)
+                // FIX: Check if data is array (Prevents crash)
+                if (Array.isArray(data)) {
+                    const ids = new Set<number>(data.map((app: any) => Number(app.job_id)))
+                    setAppliedJobIds(ids)
+                } else {
+                    console.error("API Error or Invalid Format:", data)
+                }
             })
             .catch(err => console.error("Failed to fetch apps", err))
     }
@@ -119,7 +124,6 @@ export default function CandidateJobsPage() {
                 <div className="space-y-4 py-4">
                     <div className="space-y-2">
                         <Label>Resume (PDF)</Label>
-                        {/* FIX: Visible File Input */}
                         <Input 
                             type="file" 
                             accept=".pdf"

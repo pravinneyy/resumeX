@@ -1,40 +1,31 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
 from db import get_db
-from models import Recruiter, Candidate
+from models import Candidate
+from pydantic import BaseModel
 
 router = APIRouter()
 
-class UserSync(BaseModel):
-    id: str
+class UserSyncRequest(BaseModel):
+    id: str  # Clerk User ID
     email: str
     name: str
-    role: str  # 'recruiter' or 'candidate'
+    role: str = "candidate"
 
-@router.post("/auth/sync")
-def sync_user(user: UserSync, db: Session = Depends(get_db)):
-    if user.role == "recruiter":
-        existing = db.query(Recruiter).filter(Recruiter.id == user.id).first()
-        if not existing:
-            new_recruiter = Recruiter(id=user.id, email=user.email, name=user.name)
-            db.add(new_recruiter)
-            db.commit()
-            return {"message": "Recruiter synced"}
+@router.post("/sync")
+def sync_user(data: UserSyncRequest, db: Session = Depends(get_db)):
+    # Check if candidate exists, if not create them
+    candidate = db.query(Candidate).filter(Candidate.id == data.id).first()
     
-    elif user.role == "candidate":
-        existing = db.query(Candidate).filter(Candidate.id == user.id).first()
-        if not existing:
-            new_candidate = Candidate(
-                id=user.id, 
-                email=user.email, 
-                name=user.name, 
-                resume_url="", 
-                parsed_summary="", 
-                skills=""
-            )
-            db.add(new_candidate)
-            db.commit()
-            return {"message": "Candidate synced"}
-            
-    return {"message": "User already exists"}
+    if not candidate:
+        new_candidate = Candidate(
+            id=data.id, 
+            email=data.email, 
+            name=data.name,
+            skills="General" # Default
+        )
+        db.add(new_candidate)
+        db.commit()
+        return {"message": "User created"}
+    
+    return {"message": "User exists"}

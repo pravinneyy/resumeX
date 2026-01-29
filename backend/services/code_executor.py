@@ -2,84 +2,93 @@ import requests
 import json
 import time
 
-# Judge0 Language IDs (Standard Mapping)
-# Full list: https://ce.judge0.com/#/runtimes
-LANGUAGE_MAP = {
-    "python": 71,  # Python 3.8.1
-    "javascript": 63, # Node.js 12.14.0
-    "java": 62,    # Java (OpenJDK 13.0.1)
-    "cpp": 54,     # C++ (GCC 9.2.0)
-    "go": 60,      # Go (1.13.5)
+# Piston API Endpoint (Public & Free)
+# Documentation: https://piston.readthedocs.io/en/latest/api-v2/
+PISTON_API_URL = "https://emkc.org/api/v2/piston/execute"
+
+# Map frontend language names to Piston's expected "language" and "version"
+# You can check supported languages: GET https://emkc.org/api/v2/piston/runtimes
+LANGUAGE_CONFIG = {
+    "python": {"language": "python", "version": "3.10.0"},
+    "javascript": {"language": "javascript", "version": "18.15.0"},
+    "java": {"language": "java", "version": "15.0.2"},
+    "cpp": {"language": "c++", "version": "10.2.0"},
+    "go": {"language": "go", "version": "1.16.2"},
 }
 
-# --- CONFIGURATION ---
-# 1. Get a key from: https://rapidapi.com/judge0-official/api/judge0-ce
-API_KEY = "YOUR_RAPIDAPI_KEY_HERE"  # <--- PASTE YOUR KEY HERE
-BASE_URL = "https://judge0-ce.p.rapidapi.com"
+def calculate_complexity(code: str) -> int:
+    """
+    Simple heuristic: counts indentation depth to guess complexity.
+    Deeper nesting = Higher complexity score (bad).
+    """
+    max_depth = 0
+    for line in code.split('\n'):
+        # Count leading spaces (assuming 4 spaces per indent)
+        indent = len(line) - len(line.lstrip())
+        current_depth = indent // 4 
+        if current_depth > max_depth:
+            max_depth = current_depth
+    return max_depth
 
 def execute_code(code: str, language: str, stdin: str = ""):
     """
-    Sends code to Judge0 API and polls for the result.
+    Sends code to Piston API for execution and calculates efficiency metrics.
     """
-    lang_id = LANGUAGE_MAP.get(language.lower())
+    lang_config = LANGUAGE_CONFIG.get(language.lower())
     
-    if not lang_id:
+    if not lang_config:
         return {
             "status": "error", 
-            "output": f"Language '{language}' not supported. Supported: {list(LANGUAGE_MAP.keys())}"
+            "output": f"Language '{language}' not supported. Supported: {list(LANGUAGE_CONFIG.keys())}"
         }
 
-    headers = {
-        "content-type": "application/json",
-        "X-RapidAPI-Key": API_KEY,
-        "X-RapidAPI-Host": "judge0-ce.p.rapidapi.com"
+    payload = {
+        "language": lang_config["language"],
+        "version": lang_config["version"],
+        "files": [{"content": code}],
+        "stdin": stdin,
+        "run_timeout": 3000, # 3 seconds hard limit
     }
 
-    # 1. SUBMIT CODE
-    payload = {
-        "language_id": lang_id,
-        "source_code": code,
-        "stdin": stdin
-    }
+    start_time = time.time()
     
     try:
-        response = requests.post(f"{BASE_URL}/submissions?base64_encoded=false&wait=false", json=payload, headers=headers)
-        if response.status_code != 201:
-            return {"status": "error", "output": f"API Error: {response.text}"}
+        response = requests.post(PISTON_API_URL, json=payload)
+        end_time = time.time()
         
-        token = response.json().get("token")
+        if response.status_code != 200:
+            return {"status": "error", "output": f"Piston API Error: {response.text}"}
         
-        # 2. POLL FOR RESULT (Wait for execution to finish)
-        # Judge0 is async, so we wait 1-2 seconds for the container to run
-        result = None
-        for _ in range(5): 
-            time.sleep(1) # Wait 1 sec
-            check_res = requests.get(f"{BASE_URL}/submissions/{token}?base64_encoded=false", headers=headers)
-            data = check_res.json()
-            
-            # Status ID 3 means "Accepted" (Finished successfully)
-            # Status ID > 3 means Error (Runtime Error, Compilation Error, etc)
-            status_id = data.get("status", {}).get("id", 0)
-            
-            if status_id >= 3: 
-                result = data
-                break
+        data = response.json()
+        run_stage = data.get("run", {})
         
-        if not result:
-            return {"status": "error", "output": "Execution timed out"}
+        output = run_stage.get("stdout", "") + run_stage.get("stderr", "")
+        exit_code = run_stage.get("code")
+        
+        # --- EFFICIENCY CALCULATION ---
+        execution_duration = end_time - start_time
+        
+        # 1. Time Score (Target: < 1.0s)
+        # If it runs in 0s, score is 100. If 1.0s, score is 0.
+        time_score = max(0, 100 * (1 - execution_duration))
+        
+        # 2. Complexity Score (Target: Depth < 3)
+        # Depth 0 = 100, Depth 1 = 90, etc.
+        depth = calculate_complexity(code)
+        complexity_score = max(0, 100 - (10 * depth))
+        
+        # 3. Combined Efficiency Score
+        efficiency_score = int((0.6 * time_score) + (0.4 * complexity_score))
 
-        # 3. PARSE OUTPUT
-        # stdout = normal output, stderr = error output, compile_output = syntax errors
-        output = result.get("stdout") or result.get("stderr") or result.get("compile_output")
-        
-        # Check if it ran successfully (Status ID 3)
-        is_success = result.get("status", {}).get("id") == 3
-        
         return {
-            "status": "success" if is_success else "failed",
-            "output": output,
-            "memory": result.get("memory"),
-            "time": result.get("time")
+            "status": "success" if exit_code == 0 else "failed",
+            "output": output.strip(),
+            "execution_time": round(execution_duration, 3),
+            "efficiency_score": efficiency_score,
+            "metrics": {
+                "time_score": int(time_score),
+                "complexity_score": int(complexity_score)
+            }
         }
 
     except Exception as e:

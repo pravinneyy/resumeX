@@ -1,93 +1,120 @@
-import re
-import pdfplumber
-import docx
 import os
+import io
+import requests
+import pdfplumber
+import re
+from dotenv import load_dotenv
 
-# Central Skill Database
-SKILL_DB = [
-    "python", "java", "c++", "c#", "javascript", "typescript", "html", "css", "sql", "go", "rust", 
-    "react", "angular", "vue", "node.js", "django", "fastapi", "flask", "spring boot", ".net", 
-    "docker", "kubernetes", "aws", "azure", "gcp", "git", "jenkins", "linux", 
-    "mysql", "postgresql", "mongodb", "redis", "oracle", "sql server",
-    "machine learning", "tensorflow", "pytorch", "pandas", "numpy", "opencv"
-]
+load_dotenv()
 
-def extract_text_from_file(file_bytes, filename):
-    text = ""
+# Configuration
+HF_TOKEN = os.getenv("HF_TOKEN")
+# Using the Direct Router URL (Confirmed Working)
+API_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-mnli"
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
+
+def extract_text_from_pdf(file_content: bytes) -> str:
+    """Helper to get raw text from PDF bytes"""
     try:
-        if filename.endswith('.pdf'):
-            # Save bytes to temp file to read with pdfplumber
-            with open("temp.pdf", "wb") as f:
-                f.write(file_bytes)
-            with pdfplumber.open("temp.pdf") as pdf:
-                for page in pdf.pages:
-                    extract = page.extract_text()
-                    if extract: text += extract + "\n"
-        elif filename.endswith('.docx'):
-            with open("temp.docx", "wb") as f:
-                f.write(file_bytes)
-            doc = docx.Document("temp.docx")
-            for para in doc.paragraphs:
-                text += para.text + "\n"
+        with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+            text = "\n".join([page.extract_text() or "" for page in pdf.pages])
+        return text
     except Exception as e:
-        print(f"Error parsing file: {e}")
-    finally:
-        # Cleanup temp files
-        if os.path.exists("temp.pdf"): os.remove("temp.pdf")
-        if os.path.exists("temp.docx"): os.remove("temp.docx")
-    return text
+        print(f"❌ PDF Text Extraction Failed: {e}")
+        return ""
 
-def parse_resume_sections(text):
-    lines = text.split('\n')
-    sections = {
-        "Personal": [],
-        "Experience": [],
-        "Education": [],
-        "Skills": [],
-        "Projects": []
-    }
+def extract_skills_from_text(text: str) -> str:
+    """
+    Since we are using a Classifier (not a Chatbot), we extract skills 
+    using keyword matching instead of asking the AI to write them.
+    """
+    # Common tech keywords to look for
+    keywords = [
+        "Python", "Java", "C++", "JavaScript", "TypeScript", "React", "Angular", "Vue",
+        "Node.js", "Django", "FastAPI", "Flask", "SQL", "PostgreSQL", "MongoDB",
+        "AWS", "Azure", "Docker", "Kubernetes", "Git", "Linux", "Machine Learning",
+        "TensorFlow", "PyTorch", "HTML", "CSS", "C#", ".NET", "Go", "Rust"
+    ]
     
-    current_section = "Personal"
-    headers = {
-        "EXPERIENCE": "Experience", "WORK HISTORY": "Experience", "EMPLOYMENT": "Experience",
-        "EDUCATION": "Education", "QUALIFICATIONS": "Education",
-        "SKILLS": "Skills", "TECHNICAL SKILLS": "Skills",
-        "PROJECTS": "Projects"
-    }
-
-    for line in lines:
-        clean_line = line.strip().upper()
-        if clean_line in headers:
-            current_section = headers[clean_line]
-        else:
-            if line.strip():
-                sections[current_section].append(line.strip())
-
-    # Extraction Logic
-    email = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
-    phone = re.search(r'(?:\+?\d{1,3}[-. \t]?)?\(?\d{3}\)?[-. \t]?\d{3}[-. \t]?\d{4}', text)
-    name = sections["Personal"][0] if sections["Personal"] else "Candidate"
-
     found_skills = set()
     text_lower = text.lower()
-    for skill in SKILL_DB:
-        pattern = r'\b' + re.escape(skill) + r'\b'
-        if re.search(pattern, text_lower):
+    
+    for skill in keywords:
+        # Check if the skill exists in the text (case-insensitive)
+        # We use regex to ensure we match "Java" but not "Javascript" twice
+        if re.search(r'\b' + re.escape(skill.lower()) + r'\b', text_lower):
             found_skills.add(skill)
+            
+    return ",".join(list(found_skills)) if found_skills else "General Engineering"
 
-    return {
-        "personal": {
-            "name": name,
-            "email": email.group(0) if email else "Not Found",
-            "phone": phone.group(0).strip() if phone else "Not Found",
-        },
-        "experience": sections["Experience"][:10],
-        "education": sections["Education"][:5],
-        "skills": list(found_skills)
+def parse_resume_from_bytes(file_content: bytes, filename: str):
+    """
+    Extracts text and returns a summary + extracted skills.
+    """
+    text = extract_text_from_pdf(file_content)
+    if not text:
+        return "Could not read resume text.", "General"
+    
+    # 1. Generate a Text Summary (First 300 chars)
+    summary = text[:300].replace("\n", " ") + "..."
+    
+    # 2. Extract Skills using Python (Reliable & Free)
+    skills = extract_skills_from_text(text)
+    
+    return summary, skills
+
+def screen_candidate(resume_text: str, job_description: str):
+    """
+    Uses direct requests to Hugging Face Router for screening.
+    """
+    if not HF_TOKEN:
+        return {"status": "Pending", "reasoning": "AI Token Missing"}
+
+    labels = ["Qualified Candidate", "Not Qualified"]
+
+    # Construct Payload
+    payload = {
+        "inputs": resume_text[:1000],
+        "parameters": {
+            "candidate_labels": labels,
+            "multi_label": False
+        }
     }
 
-async def extract_resume_info(file, filename):
-    content = await file.read()
-    text = extract_text_from_file(content, filename)
-    parsed_data = parse_resume_sections(text)
-    return parsed_data
+    try:
+        response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=30)
+        data = response.json()
+
+        # --- CRITICAL FIX FOR YOUR "UNEXPECTED FORMAT" WARNING ---
+        # Handle List Response: [{'label': 'Not Qualified', 'score': 0.58}, ...]
+        if isinstance(data, list) and len(data) > 0:
+            # Sort by score descending
+            data.sort(key=lambda x: x.get('score', 0), reverse=True)
+            top_result = data[0]
+            top_label = top_result.get('label', 'Unknown')
+            top_score = top_result.get('score', 0)
+            
+        # Handle Dict Response (Fallback): {'labels': [...], 'scores': [...]}
+        elif isinstance(data, dict) and "labels" in data:
+            top_label = data['labels'][0]
+            top_score = data['scores'][0]
+            
+        else:
+             return {"status": "Applied", "reasoning": f"AI Error: Unexpected format {str(data)[:50]}"}
+
+        # Decision Logic
+        confidence = round(top_score * 100, 1)
+        status = "Rejected"
+        if top_label == "Qualified Candidate" and top_score > 0.5:
+            status = "Selected"
+
+        reasoning = f"AI Classification: {top_label} ({confidence}% confidence)."
+
+        return {
+            "status": status,
+            "reasoning": reasoning
+        }
+
+    except Exception as e:
+        print(f"❌ Screening Error: {e}")
+        return {"status": "Applied", "reasoning": "AI Screening Failed"}

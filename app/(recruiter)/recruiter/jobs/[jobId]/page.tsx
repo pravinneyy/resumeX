@@ -6,12 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { 
-    ArrowLeft, User, FileText, CheckCircle, XCircle, BrainCircuit, 
+    ArrowLeft, FileText, CheckCircle, XCircle, BrainCircuit, 
     Sparkles, Plus, Trash2, Save, Loader2, Mail, ExternalLink
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -46,7 +46,10 @@ export default function JobDetailsPage() {
   const fetchApplications = async () => {
     try {
         const res = await fetch(`http://127.0.0.1:8000/api/jobs/${jobId}/applications`)
-        if (res.ok) setApplications(await res.json())
+        if (res.ok) {
+            const data = await res.json()
+            setApplications(data)
+        }
     } catch (e) { console.error(e) }
   }
 
@@ -62,7 +65,6 @@ export default function JobDetailsPage() {
           if (res.ok) {
               setApplications(apps => apps.map(a => a.id === appId ? {...a, status: newStatus} : a))
               setSelectedApp(null) 
-              alert(`Candidate ${newStatus === 'Rejected' ? 'Rejected' : 'Accepted'}!`)
           } else {
               alert("Failed to update status")
           }
@@ -89,15 +91,18 @@ export default function JobDetailsPage() {
     } catch (e) { console.error(e) }
   }
 
-  // Helper to format resume URL correctly
   const getResumeLink = (url: string) => {
       if (!url) return "#"
-      // If the URL already starts with http, use it. Otherwise, prepend the backend URL.
       if (url.startsWith("http")) return url
-      // Remove leading slash if present to avoid double slashes
       const cleanPath = url.startsWith("/") ? url.substring(1) : url
       return `http://127.0.0.1:8000/${cleanPath}`
   }
+
+  // --- HELPER TO HANDLE BOTH BACKEND VERSIONS ---
+  const getName = (app: any) => app.candidate_name || app.name || "Unknown Candidate"
+  const getEmail = (app: any) => app.candidate_email || app.email || ""
+  const getSkills = (app: any) => app.candidate_skills || app.skills || ""
+  const getReasoning = (app: any) => app.candidate_summary || app.ai_reasoning || app.notes || "No analysis available."
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6 animate-fade-in pb-20">
@@ -112,7 +117,6 @@ export default function JobDetailsPage() {
                 <TabsTrigger value="settings">Job Settings</TabsTrigger>
             </TabsList>
 
-            {/* TAB 1: APPLICANTS LIST */}
             <TabsContent value="applicants">
                 <Card>
                     <CardHeader><CardTitle>Candidates ({applications.length})</CardTitle></CardHeader>
@@ -125,15 +129,15 @@ export default function JobDetailsPage() {
                                         <div className="flex items-center gap-4">
                                             <Avatar>
                                                 <AvatarFallback className="bg-primary/10 text-primary">
-                                                    {app.candidate_name.substring(0, 2).toUpperCase()}
+                                                    {getName(app).substring(0, 2).toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <div className="font-semibold">{app.candidate_name}</div>
-                                                <div className="text-xs text-muted-foreground">{app.candidate_email}</div>
+                                                <div className="font-semibold">{getName(app)}</div>
+                                                <div className="text-xs text-muted-foreground">{getEmail(app)}</div>
                                             </div>
                                         </div>
-                                        <Badge variant={app.status === 'Interview' ? 'default' : app.status === 'Rejected' ? 'destructive' : 'secondary'}>
+                                        <Badge variant={app.status === 'Selected' ? 'default' : app.status === 'Rejected' ? 'destructive' : 'secondary'}>
                                             {app.status}
                                         </Badge>
                                     </div>
@@ -144,7 +148,6 @@ export default function JobDetailsPage() {
                 </Card>
             </TabsContent>
             
-            {/* TAB 2: SETTINGS */}
             <TabsContent value="settings">
                 <Card>
                     <CardHeader><CardTitle>Assessment Configuration</CardTitle></CardHeader>
@@ -180,101 +183,110 @@ export default function JobDetailsPage() {
             </TabsContent>
         </Tabs>
 
-        {/* REDESIGNED CANDIDATE DRAWER */}
         <Sheet open={!!selectedApp} onOpenChange={() => setSelectedApp(null)}>
             <SheetContent className="sm:max-w-xl overflow-y-auto w-full p-0 gap-0">
-                {/* Header Section */}
-                <div className="bg-muted/40 p-6 border-b">
-                    <SheetHeader>
-                        <div className="flex items-center gap-4">
-                            <Avatar className="h-16 w-16 border-2 border-background">
-                                <AvatarFallback className="text-xl bg-primary text-primary-foreground">
-                                    {selectedApp?.candidate_name.substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="space-y-1">
-                                <SheetTitle className="text-xl">{selectedApp?.candidate_name}</SheetTitle>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <Mail className="w-3.5 h-3.5" />
-                                    {selectedApp?.candidate_email}
+                {selectedApp && (
+                    <>
+                    <div className="bg-muted/40 p-6 border-b">
+                        <SheetHeader>
+                            <div className="flex items-center gap-4">
+                                <Avatar className="h-16 w-16 border-2 border-background">
+                                    <AvatarFallback className="text-xl bg-primary text-primary-foreground">
+                                        {getName(selectedApp).substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="space-y-1">
+                                    <SheetTitle className="text-xl">{getName(selectedApp)}</SheetTitle>
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                        <Mail className="w-3.5 h-3.5" />
+                                        {getEmail(selectedApp)}
+                                    </div>
+                                    <Badge variant="outline" className="mt-1">{selectedApp.status}</Badge>
                                 </div>
-                                <Badge variant="outline" className="mt-1">{selectedApp?.status}</Badge>
+                            </div>
+                        </SheetHeader>
+                    </div>
+
+                    <div className="p-6 space-y-8">
+                        {/* AI ANALYSIS CARD */}
+                        <div className="space-y-3">
+                            <h3 className="font-semibold flex items-center gap-2 text-primary">
+                                <Sparkles className="w-4 h-4" /> AI Analysis
+                            </h3>
+                            <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-xl text-sm leading-relaxed text-gray-700 shadow-sm">
+                                {getReasoning(selectedApp)}
                             </div>
                         </div>
-                    </SheetHeader>
-                </div>
 
-                <div className="p-6 space-y-8">
-                    {/* AI SUMMARY CARD */}
-                    <div className="space-y-3">
-                        <h3 className="font-semibold flex items-center gap-2 text-primary">
-                            <Sparkles className="w-4 h-4" /> AI Analysis
-                        </h3>
-                        <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-xl text-sm leading-relaxed text-gray-700 shadow-sm">
-                            {selectedApp?.candidate_summary || "Processing..."}
-                        </div>
-                    </div>
-
-                    {/* SKILLS */}
-                    <div className="space-y-3">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            <BrainCircuit className="w-4 h-4 text-muted-foreground" /> Detected Skills
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                            {(selectedApp?.candidate_skills || "").split(',').map((skill: string, i: number) => (
-                                <Badge key={i} variant="secondary" className="px-3 py-1 font-normal bg-secondary/50 hover:bg-secondary">
-                                    {skill.trim()}
-                                </Badge>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* DOCUMENTS */}
-                    <div className="space-y-3">
-                        <h3 className="font-semibold flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-muted-foreground" /> Documents
-                        </h3>
-                        {selectedApp?.resume_url ? (
-                            <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/20 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-red-100 rounded text-red-600">
-                                        <FileText className="w-5 h-5" />
-                                    </div>
-                                    <div className="text-sm">
-                                        <p className="font-medium">Resume.pdf</p>
-                                        <p className="text-xs text-muted-foreground">Original Application</p>
-                                    </div>
-                                </div>
-                                <Button size="sm" variant="outline" asChild>
-                                    <a href={getResumeLink(selectedApp.resume_url)} target="_blank" rel="noopener noreferrer">
-                                        View <ExternalLink className="w-3 h-3 ml-2" />
-                                    </a>
-                                </Button>
+                        {/* SKILLS */}
+                        <div className="space-y-3">
+                            <h3 className="font-semibold flex items-center gap-2">
+                                <BrainCircuit className="w-4 h-4 text-muted-foreground" /> Detected Skills
+                            </h3>
+                            <div className="flex flex-wrap gap-2">
+                                {Array.isArray(getSkills(selectedApp)) 
+                                    ? getSkills(selectedApp).map((skill: string, i: number) => (
+                                        <Badge key={i} variant="secondary" className="px-3 py-1 font-normal bg-secondary/50 hover:bg-secondary">
+                                            {skill.trim()}
+                                        </Badge>
+                                    ))
+                                    : (getSkills(selectedApp) || "").split(',').map((skill: string, i: number) => (
+                                        skill && <Badge key={i} variant="secondary" className="px-3 py-1 font-normal bg-secondary/50 hover:bg-secondary">
+                                            {skill.trim()}
+                                        </Badge>
+                                    ))
+                                }
                             </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground italic">No resume uploaded.</p>
-                        )}
-                    </div>
+                        </div>
 
-                    {/* ACTIONS FOOTER */}
-                    <div className="grid grid-cols-2 gap-4 pt-6 mt-6 border-t">
-                        <Button 
-                            variant="destructive" 
-                            className="w-full"
-                            disabled={updating} 
-                            onClick={() => updateStatus(selectedApp.id, 'Rejected')}
-                        >
-                            {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <><XCircle className="w-4 h-4 mr-2" /> Reject Candidate</>}
-                        </Button>
-                        <Button 
-                            className="w-full bg-green-600 hover:bg-green-700" 
-                            disabled={updating} 
-                            onClick={() => updateStatus(selectedApp.id, 'Interview')}
-                        >
-                            {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <><CheckCircle className="w-4 h-4 mr-2" /> Accept for Interview</>}
-                        </Button>
+                        {/* DOCUMENTS */}
+                        <div className="space-y-3">
+                            <h3 className="font-semibold flex items-center gap-2">
+                                <FileText className="w-4 h-4 text-muted-foreground" /> Documents
+                            </h3>
+                            {selectedApp.resume_url ? (
+                                <div className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/20 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-red-100 rounded text-red-600">
+                                            <FileText className="w-5 h-5" />
+                                        </div>
+                                        <div className="text-sm">
+                                            <p className="font-medium">Resume.pdf</p>
+                                            <p className="text-xs text-muted-foreground">Original Application</p>
+                                        </div>
+                                    </div>
+                                    <Button size="sm" variant="outline" asChild>
+                                        <a href={getResumeLink(selectedApp.resume_url)} target="_blank" rel="noopener noreferrer">
+                                            View <ExternalLink className="w-3 h-3 ml-2" />
+                                        </a>
+                                    </Button>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground italic">No resume uploaded.</p>
+                            )}
+                        </div>
+
+                        {/* ACTIONS FOOTER */}
+                        <div className="grid grid-cols-2 gap-4 pt-6 mt-6 border-t">
+                            <Button 
+                                variant="destructive" 
+                                className="w-full"
+                                disabled={updating} 
+                                onClick={() => updateStatus(selectedApp.id, 'Rejected')}
+                            >
+                                {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <><XCircle className="w-4 h-4 mr-2" /> Reject Candidate</>}
+                            </Button>
+                            <Button 
+                                className="w-full bg-green-600 hover:bg-green-700" 
+                                disabled={updating} 
+                                onClick={() => updateStatus(selectedApp.id, 'Interview')}
+                            >
+                                {updating ? <Loader2 className="animate-spin w-4 h-4"/> : <><CheckCircle className="w-4 h-4 mr-2" /> Accept for Interview</>}
+                            </Button>
+                        </div>
                     </div>
-                </div>
+                    </>
+                )}
             </SheetContent>
         </Sheet>
     </div>

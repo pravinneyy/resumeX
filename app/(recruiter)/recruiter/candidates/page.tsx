@@ -8,10 +8,20 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
-  Search, Filter, Users, FileText, Mail, Phone, MapPin, Calendar, 
+  Search, Users, Mail, Phone, 
   ChevronRight, Download, MoreHorizontal, Loader2
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+// Ensure this component exists, or remove this import if you haven't created it yet
+import VerdictCard from "@/components/recruiter/VerdictCard" 
 
 const statusColors: Record<string, string> = {
   "Applied": "bg-blue-500/20 text-blue-400",
@@ -22,31 +32,43 @@ const statusColors: Record<string, string> = {
 }
 
 export default function CandidatesPage() {
+  // Initialize as empty array to be safe
   const [candidates, setCandidates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  // FETCH REAL DATA
+  // FETCH DATA
   useEffect(() => {
     fetch("http://127.0.0.1:8000/api/candidates")
       .then(res => res.json())
       .then(data => {
-        setCandidates(data)
-        setLoading(false)
+        // FIX: Only set state if data is truly an array
+        if (Array.isArray(data)) {
+            setCandidates(data)
+        } else {
+            console.error("API returned non-array:", data)
+            setCandidates([]) // Fallback to empty list
+        }
       })
       .catch(err => {
         console.error("Failed to fetch candidates:", err)
-        setLoading(false)
+        setCandidates([])
       })
+      .finally(() => setLoading(false))
   }, [])
 
-  const filteredCandidates = candidates.filter((candidate) => {
+  // FIX: Safety check before filtering
+  const safeCandidates = Array.isArray(candidates) ? candidates : [];
+
+  const filteredCandidates = safeCandidates.filter((candidate) => {
     const matchesSearch =
-      candidate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      candidate.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      candidate.skills.some((skill: string) => skill.toLowerCase().includes(searchQuery.toLowerCase()))
+      candidate.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.position?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      candidate.skills?.some((skill: string) => skill.toLowerCase().includes(searchQuery.toLowerCase()))
+    
     const matchesStatus = statusFilter === "all" || candidate.status === statusFilter
+    
     return matchesSearch && matchesStatus
   })
 
@@ -75,37 +97,10 @@ export default function CandidatesPage() {
           <CardContent className="p-4 flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/10"><Users className="w-5 h-5 text-primary" /></div>
               <div>
-                <p className="text-2xl font-bold">{candidates.length}</p>
+                <p className="text-2xl font-bold">{safeCandidates.length}</p>
                 <p className="text-sm text-muted-foreground">Total</p>
               </div>
           </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10"><FileText className="w-5 h-5 text-blue-400" /></div>
-              <div>
-                <p className="text-2xl font-bold">{candidates.filter((c) => c.status === "Applied").length}</p>
-                <p className="text-sm text-muted-foreground">New</p>
-              </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-yellow-500/10"><Filter className="w-5 h-5 text-yellow-400" /></div>
-              <div>
-                <p className="text-2xl font-bold">{candidates.filter((c) => c.status === "Assessment").length}</p>
-                <p className="text-sm text-muted-foreground">Assessment</p>
-              </div>
-            </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/10"><Calendar className="w-5 h-5 text-green-400" /></div>
-              <div>
-                <p className="text-2xl font-bold">{candidates.filter((c) => c.status === "Interview").length}</p>
-                <p className="text-sm text-muted-foreground">Interviews</p>
-              </div>
-            </CardContent>
         </Card>
       </div>
 
@@ -143,7 +138,7 @@ export default function CandidatesPage() {
         <CardHeader>
           <CardTitle>Registered Candidates</CardTitle>
           <CardDescription>
-            Showing {filteredCandidates.length} of {candidates.length} candidates
+            Showing {filteredCandidates.length} of {safeCandidates.length} candidates
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -156,14 +151,14 @@ export default function CandidatesPage() {
                 <div className="flex items-start gap-4">
                   <Avatar className="w-12 h-12 border-2 border-border">
                     <AvatarFallback className="bg-primary/20 text-primary">
-                      {candidate.name.substring(0,2).toUpperCase()}
+                      {candidate.name ? candidate.name.substring(0,2).toUpperCase() : "??"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="font-semibold text-foreground">{candidate.name}</h3>
-                        <p className="text-sm text-muted-foreground">{candidate.position}</p>
+                        <h3 className="font-semibold text-foreground">{candidate.name || "Unknown"}</h3>
+                        <p className="text-sm text-muted-foreground">{candidate.position || "N/A"}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge className={statusColors[candidate.status] || "bg-secondary"}>
@@ -182,32 +177,62 @@ export default function CandidatesPage() {
                         </DropdownMenu>
                       </div>
                     </div>
+                    
+                    {/* Candidate Metadata */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{candidate.email}</span>
-                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{candidate.phone}</span>
-                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{candidate.location}</span>
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{candidate.phone || "N/A"}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-3">
-                      {candidate.skills.slice(0, 4).map((skill: string) => (
+                      {candidate.skills && candidate.skills.slice(0, 4).map((skill: string) => (
                         <Badge key={skill} variant="secondary" className="text-xs bg-secondary/80">
                           {skill.trim()}
                         </Badge>
                       ))}
                     </div>
+
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
                       <div className="flex items-center gap-4 text-sm">
                         <span className="text-muted-foreground">
-                          Applied: <span className="text-foreground">{new Date(candidate.appliedDate).toLocaleDateString()}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Score: <span className={`font-semibold ${candidate.aiScore >= 9 ? 'text-green-500' : 'text-primary'}`}>
-                            {candidate.aiScore} / 10
+                          Applied: <span className="text-foreground">
+                            {candidate.appliedDate ? new Date(candidate.appliedDate).toLocaleDateString() : "N/A"}
                           </span>
                         </span>
+                        
+                        {/* --- UPDATED SCORE SECTION --- */}
+                        {/* Matched 'candidate.score' to backend response */}
+                        <span className="text-muted-foreground">
+                          Score: <span className={`font-semibold ${candidate.score >= 60 ? 'text-green-500' : 'text-primary'}`}>
+                            {candidate.score || 0} / 100
+                          </span>
+                        </span>
+                        {/* ----------------------------- */}
+
                       </div>
-                      <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground">
-                        View Details <ChevronRight className="w-4 h-4" />
-                      </Button>
+
+                      {/* --- VIEW DETAILS MODAL --- */}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground">
+                            View Details <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-xl bg-[#1e1e1e] border-gray-700">
+                          <DialogHeader>
+                            <DialogTitle>Candidate Assessment Report</DialogTitle>
+                            <DialogDescription>
+                              Detailed analysis for <span className="font-semibold text-primary">{candidate.name}</span>
+                            </DialogDescription>
+                          </DialogHeader>
+                          
+                          {/* Ensure VerdictCard component exists */}
+                          <VerdictCard 
+                            jobId={candidate.job_id || 1} 
+                            candidateId={candidate.id} 
+                          />
+                          
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </div>
                 </div>
