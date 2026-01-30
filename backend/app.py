@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
@@ -13,8 +12,7 @@ from routes import auth, jobs, candidates, assessments, applications
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    if not os.path.exists("uploads"):
-        os.makedirs("uploads")
+    # Removed local uploads folder creation since we use Supabase now
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -27,20 +25,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# --- REMOVED: app.mount("/uploads"...) ---
+# We no longer serve files locally.
 
 # --- ROUTES ---
 app.include_router(auth.router, prefix="/api/users", tags=["Auth"])
-
-# FIX: Use prefix="/api" because jobs.py already has "/jobs"
 app.include_router(jobs.router, prefix="/api", tags=["Jobs"])
-
 app.include_router(candidates.router, prefix="/api", tags=["Candidates"])
-
-# FIX: Use prefix="/api" because assessments.py already has "/assessments"
 app.include_router(assessments.router, prefix="/api", tags=["Assessments"])
-
-# FIX: Register Applications Router
 app.include_router(applications.router, prefix="/api", tags=["Applications"])
 
 @app.get("/")

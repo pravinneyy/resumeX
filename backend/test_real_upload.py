@@ -19,13 +19,13 @@ try:
     print("🚀 Attempting to upload 'test.txt'...")
     
     data = b"Hello Supabase!"
-    res = supabase.storage.from_("resumes").upload("test.txt", data, {"content-type": "text/plain"})
+    res = supabase.storage.from_("resumes").upload("teswwwt.txt", data, {"content-type": "text/plain"})
     
     print("✅ Upload Successful!")
     print(f"Response: {res}")
     
     # Get Public URL
-    public_url = supabase.storage.from_("resumes").get_public_url("test.txt")
+    public_url = supabase.storage.from_("resumes").get_public_url("teswwwt.txt")
     print(f"🎉 File accessible at: {public_url}")
 
 except Exception as e:

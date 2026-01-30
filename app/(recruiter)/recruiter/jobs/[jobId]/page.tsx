@@ -154,7 +154,16 @@ export default function JobDetailsPage() {
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2"><Label>Exam Title</Label><Input value={assessment.title} onChange={(e) => setAssessment({...assessment, title: e.target.value})} /></div>
-                            <div className="space-y-2"><Label>Duration (Minutes)</Label><Input type="number" value={assessment.duration_minutes} onChange={(e) => setAssessment({...assessment, duration_minutes: parseInt(e.target.value)})} /></div>
+                            
+                            {/* --- FIX APPLIED HERE: Handle NaN values --- */}
+                            <div className="space-y-2">
+                                <Label>Duration (Minutes)</Label>
+                                <Input 
+                                    type="number" 
+                                    value={isNaN(assessment.duration_minutes) ? "" : assessment.duration_minutes} 
+                                    onChange={(e) => setAssessment({...assessment, duration_minutes: parseInt(e.target.value) || 0})} 
+                                />
+                            </div>
                         </div>
                         <div className="space-y-4 border-t pt-4">
                             <h3 className="font-semibold flex items-center justify-between">
@@ -226,14 +235,14 @@ export default function JobDetailsPage() {
                             <div className="flex flex-wrap gap-2">
                                 {Array.isArray(getSkills(selectedApp)) 
                                     ? getSkills(selectedApp).map((skill: string, i: number) => (
-                                        <Badge key={i} variant="secondary" className="px-3 py-1 font-normal bg-secondary/50 hover:bg-secondary">
-                                            {skill.trim()}
-                                        </Badge>
+                                            <Badge key={i} variant="secondary" className="px-3 py-1 font-normal bg-secondary/50 hover:bg-secondary">
+                                                {skill.trim()}
+                                            </Badge>
                                     ))
                                     : (getSkills(selectedApp) || "").split(',').map((skill: string, i: number) => (
-                                        skill && <Badge key={i} variant="secondary" className="px-3 py-1 font-normal bg-secondary/50 hover:bg-secondary">
-                                            {skill.trim()}
-                                        </Badge>
+                                            skill && <Badge key={i} variant="secondary" className="px-3 py-1 font-normal bg-secondary/50 hover:bg-secondary">
+                                                {skill.trim()}
+                                            </Badge>
                                     ))
                                 }
                             </div>
