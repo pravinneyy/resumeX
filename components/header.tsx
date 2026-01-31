@@ -8,12 +8,7 @@ import { cn } from "@/lib/utils"
 import { UserButton, SignedIn, SignedOut, ClerkLoaded, ClerkLoading } from "@clerk/nextjs"
 import { dark } from "@clerk/themes" 
 
-interface HeaderProps {
-  onSignInClick: () => void;
-  onSignUpClick: () => void;
-}
-
-export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
+export function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -25,26 +20,24 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
 
   const AuthButtons = () => (
     <div className="flex items-center gap-4">
-      <Button
-        type="button"
-        className="bg-[#d45d5d] text-white hover:bg-[#ff6b6b] transition-all duration-300 shadow-[0_0_10px_rgba(212,93,93,0.3)]"
-        onClick={(e) => {
-          e.stopPropagation();
-          onSignInClick();
-        }}
-      >
-        Sign in
-      </Button>
-      <Button
-        type="button"
-        className="bg-[#d45d5d] text-white hover:bg-[#ff6b6b] transition-all duration-300 shadow-[0_0_10px_rgba(212,93,93,0.3)]"
-        onClick={(e) => {
-          e.stopPropagation();
-          onSignUpClick();
-        }}
-      >
-        Get started
-      </Button>
+      {/* Candidate / Standard Log In */}
+      <Link href="/auth/signin">
+        <Button
+          variant="ghost"
+          className="text-[#d0b8b8] hover:text-white hover:bg-[#2d1010]"
+        >
+          Candidate Log In
+        </Button>
+      </Link>
+      
+      {/* Business / Recruiter CTA */}
+      <Link href="/auth/work-with-us">
+        <Button
+          className="bg-[#ff8080] text-[#1a0808] font-bold hover:bg-[#ff9999] transition-all duration-300 shadow-[0_0_10px_rgba(255,128,128,0.3)]"
+        >
+          Work with Us
+        </Button>
+      </Link>
     </div>
   )
 
@@ -115,8 +108,12 @@ export function Header({ onSignInClick, onSignUpClick }: HeaderProps) {
             </SignedIn>
             <SignedOut>
               <div className="flex flex-col gap-3">
-                <Button className="w-full bg-[#d45d5d] text-white" onClick={onSignInClick}>Sign in</Button>
-                <Button className="w-full bg-[#d45d5d] text-white" onClick={onSignUpClick}>Get started</Button>
+                <Link href="/auth/signin" className="w-full">
+                  <Button className="w-full bg-[#2d1010] text-[#d0b8b8] border border-[#5a3030]">Candidate Log In</Button>
+                </Link>
+                <Link href="/auth/work-with-us" className="w-full">
+                  <Button className="w-full bg-[#ff8080] text-[#1a0808] font-bold">Work with Us</Button>
+                </Link>
               </div>
             </SignedOut>
           </ClerkLoaded>
