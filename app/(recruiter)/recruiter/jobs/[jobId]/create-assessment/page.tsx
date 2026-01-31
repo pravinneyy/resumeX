@@ -1,13 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, Plus, Trash2, Save, Clock, Code2, BrainCircuit } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { ArrowLeft, Plus, Trash2, Save, Clock, Code2, BrainCircuit, Loader2 } from "lucide-react"
 
 // If you have a Checkbox component, import it. Otherwise, we use standard input below.
 // import { Checkbox } from "@/components/ui/checkbox" 
@@ -19,6 +20,13 @@ interface Question {
   test_input: string
   test_output: string
   points: number
+}
+
+interface Problem {
+  problem_id: string
+  title: string
+  description: string
+  difficulty: string
 }
 
 const AVAILABLE_TRAITS = [
@@ -46,12 +54,92 @@ export default function CreateAssessmentPage() {
     { id: Date.now(), title: "", problem_text: "", test_input: "", test_output: "", points: 10 }
   ])
 
+  // Dialog State for Add Question
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [existingProblems, setExistingProblems] = useState<Problem[]>([])
+  const [problemsLoading, setProblemsLoading] = useState(false)
+  const [showCreateNew, setShowCreateNew] = useState(false)
+  const [newProblem, setNewProblem] = useState({
+    title: "",
+    description: "",
+    difficulty: "easy",
+    function_signature: "",
+    language: "python"
+  })
+
+  // Fetch existing problems when dialog opens
+  useEffect(() => {
+    if (showAddDialog && existingProblems.length === 0) {
+      fetchProblems()
+    }
+  }, [showAddDialog])
+
   // Handlers
+  const fetchProblems = async () => {
+    setProblemsLoading(true)
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/problems")
+      if (res.ok) {
+        const data = await res.json()
+        setExistingProblems(data.problems || [])
+      }
+    } catch (error) {
+      console.error("Failed to fetch problems:", error)
+    } finally {
+      setProblemsLoading(false)
+    }
+  }
+
+  const addExistingProblem = (problem: Problem) => {
+    const newQuestion: Question = {
+      id: Date.now(),
+      title: problem.title,
+      problem_text: problem.description,
+      test_input: "",
+      test_output: "",
+      points: 10
+    }
+    setQuestions([...questions, newQuestion])
+    setShowAddDialog(false)
+    setShowCreateNew(false)
+  }
+
+  const createNewProblem = async () => {
+    if (!newProblem.title || !newProblem.description) {
+      alert("Please fill in title and description")
+      return
+    }
+
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/problems/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProblem)
+      })
+
+      if (res.ok) {
+        const created = await res.json()
+        alert("Problem created successfully!")
+        addExistingProblem(created.problem)
+        setNewProblem({
+          title: "",
+          description: "",
+          difficulty: "easy",
+          function_signature: "",
+          language: "python"
+        })
+        setShowCreateNew(false)
+      } else {
+        alert("Failed to create problem")
+      }
+    } catch (error) {
+      console.error("Error creating problem:", error)
+      alert("Error creating problem")
+    }
+  }
+
   const addQuestion = () => {
-    setQuestions([
-      ...questions,
-      { id: Date.now(), title: "", problem_text: "", test_input: "", test_output: "", points: 10 }
-    ])
+    setShowAddDialog(true)
   }
 
   const removeQuestion = (id: number) => {
@@ -111,6 +199,141 @@ export default function CreateAssessmentPage() {
   return (
     <div className="max-w-5xl mx-auto p-8 space-y-8 animate-fade-in pb-20">
       
+      {/* Dialog: Add Question from Existing or Create New */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Question to Assessment</DialogTitle>
+            <DialogDescription>
+              Select from existing problems or create a new one
+            </DialogDescription>
+          </DialogHeader>
+
+          {!showCreateNew ? (
+            <div className="space-y-4">
+              {/* Existing Problems List */}
+              <div>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Code2 className="w-4 h-4" /> Existing Problems
+                </h3>
+                
+                {problemsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  </div>
+                ) : existingProblems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">No problems found</p>
+                ) : (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                    {existingProblems.map((problem) => (
+                      <div key={problem.problem_id} className="border rounded-lg p-3 hover:bg-muted/50 cursor-pointer transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <p className="font-medium">{problem.title}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{problem.description}</p>
+                            <div className="flex gap-2 mt-2">
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                problem.difficulty === "easy" ? "bg-green-500/20 text-green-700" :
+                                problem.difficulty === "medium" ? "bg-yellow-500/20 text-yellow-700" :
+                                "bg-red-500/20 text-red-700"
+                              }`}>
+                                {problem.difficulty}
+                              </span>
+                            </div>
+                          </div>
+                          <Button size="sm" onClick={() => addExistingProblem(problem)}>
+                            Select
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Create New Button */}
+              <div className="border-t pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowCreateNew(true)} 
+                  className="w-full gap-2"
+                >
+                  <Plus className="w-4 h-4" /> Create New Problem
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* Create New Problem Form */
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Problem Title</Label>
+                <Input 
+                  value={newProblem.title}
+                  onChange={(e) => setNewProblem({...newProblem, title: e.target.value})}
+                  placeholder="e.g. Find Duplicate Number"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea 
+                  className="min-h-[100px]"
+                  value={newProblem.description}
+                  onChange={(e) => setNewProblem({...newProblem, description: e.target.value})}
+                  placeholder="Explain the problem..."
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Difficulty</Label>
+                  <select 
+                    value={newProblem.difficulty}
+                    onChange={(e) => setNewProblem({...newProblem, difficulty: e.target.value})}
+                    className="w-full border rounded-md px-3 py-2 bg-background"
+                  >
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <select 
+                    value={newProblem.language}
+                    onChange={(e) => setNewProblem({...newProblem, language: e.target.value})}
+                    className="w-full border rounded-md px-3 py-2 bg-background"
+                  >
+                    <option value="python">Python</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="java">Java</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Function Signature (Optional)</Label>
+                <Input 
+                  value={newProblem.function_signature}
+                  onChange={(e) => setNewProblem({...newProblem, function_signature: e.target.value})}
+                  placeholder="e.g. def solution(nums):"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button variant="outline" onClick={() => setShowCreateNew(false)}>
+                  Back
+                </Button>
+                <Button onClick={createNewProblem}>
+                  Create Problem
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
