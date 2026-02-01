@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useAuth } from "@clerk/nextjs" // <--- 1. Import useAuth
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,13 +41,14 @@ const AVAILABLE_TRAITS = [
 export default function CreateAssessmentPage() {
   const { jobId } = useParams()
   const router = useRouter()
+  const { getToken } = useAuth() // <--- 2. Get token helper
   const [loading, setLoading] = useState(false)
 
   // Exam Meta Data
   const [examTitle, setExamTitle] = useState("")
   const [examDuration, setExamDuration] = useState(60) // minutes
   
-  // NEW: State for Trait Selection
+  // State for Trait Selection
   const [traits, setTraits] = useState<string[]>([])
 
   // Questions State
@@ -78,7 +80,12 @@ export default function CreateAssessmentPage() {
   const fetchProblems = async () => {
     setProblemsLoading(true)
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/problems")
+      const token = await getToken() // <--- 3. Get Token
+      const res = await fetch("http://127.0.0.1:8000/api/problems", {
+          headers: {
+              "Authorization": `Bearer ${token}` // <--- Attach Header
+          }
+      })
       if (res.ok) {
         const data = await res.json()
         setExistingProblems(data.problems || [])
@@ -111,9 +118,13 @@ export default function CreateAssessmentPage() {
     }
 
     try {
+      const token = await getToken() // <--- Get Token
       const res = await fetch("http://127.0.0.1:8000/api/problems/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` // <--- Attach Header
+        },
         body: JSON.stringify(newProblem)
       })
 
@@ -166,16 +177,21 @@ export default function CreateAssessmentPage() {
         title: examTitle,
         duration_minutes: examDuration,
         questions: questions,
-        preferred_traits: traits // <--- SENDING TRAITS TO BACKEND
+        preferred_traits: traits // Sending traits to backend
     }
 
     try {
         console.log("Publishing Assessment:", payload)
         
+        const token = await getToken() // <--- Get Token
+        
         // --- REAL API CALL ---
         const res = await fetch("http://127.0.0.1:8000/api/assessments", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}` // <--- Attach Header
+            },
             body: JSON.stringify(payload)
         }) 
         
@@ -379,7 +395,7 @@ export default function CreateAssessmentPage() {
                 </div>
             </div>
 
-            {/* --- NEW: CULTURE FIT SECTION --- */}
+            {/* --- CULTURE FIT SECTION --- */}
             <div className="pt-4 border-t">
                 <div className="mb-4">
                     <Label className="text-base font-semibold flex items-center gap-2">

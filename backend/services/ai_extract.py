@@ -69,10 +69,10 @@ def extract_skills_from_text(text: str) -> List[str]:
         
         # Data & ML
         "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Scikit-learn",
-        "Pandas", "NumPy", "Data Analysis", "AI", "NLP", "Computer Vision",
+        "Pandas", "NumPy", "Data Analysis", "AI", "NLP", "Computer Vision" ,
         
         # Other
-        "REST API", "GraphQL", "Microservices", "Agile", "Scrum", "Testing",
+        "REST API", "GraphQL", "Microservices", "Agile", "Scrum", "Docker", "Kubernetes", "Jenkins", "CI/CD", "Terraform", "Linux", "Git", "GitHub", "GitLab", "Jest", "Pytest", "Selenium",
         "Jest", "Pytest", "Selenium"
     ]
     
@@ -170,7 +170,7 @@ def generate_clean_summary(text: str, max_length: int = 100) -> str:
 
 
 def analyze_job_match(resume_text: str, resume_skills: List[str], job_description: str, 
-                      job_requirements: str) -> Dict[str, any]:
+                      job_requirements: str, job_title: str = "") -> Dict[str, any]:
     """
     Analyze how well the candidate matches the job requirements
     Returns detailed match analysis with gaps
@@ -201,11 +201,11 @@ def analyze_job_match(resume_text: str, resume_skills: List[str], job_descriptio
         skill_match_rate = 0
     
     # Use AI to get overall qualification assessment
-    ai_assessment = assess_candidate_fit(resume_text, job_text)
+    ai_assessment = assess_candidate_fit(resume_text, job_text, job_title)
     
     # Combine scores (60% AI, 40% skill match)
     ai_confidence = ai_assessment.get("confidence", 0)
-    final_score = (ai_confidence * 0.6) + (skill_match_rate * 0.4)
+    final_score = (ai_confidence * 0.70) + (skill_match_rate * 0.30)
     
     # Determine verdict
     if final_score >= 75:
@@ -244,15 +244,15 @@ def analyze_job_match(resume_text: str, resume_skills: List[str], job_descriptio
     }
 
 
-def assess_candidate_fit(resume_text: str, job_description: str) -> Dict[str, any]:
+def assess_candidate_fit(resume_text: str, job_description: str, job_title: str = "") -> Dict[str, any]:
     """
     Use AI to assess if candidate fits the job requirements
     """
     if not HF_TOKEN:
         return {"confidence": 50, "label": "Unknown", "reasoning": "AI token not configured"}
     
-    # Prepare text for classification
-    combined_text = f"Job: {job_description[:500]} | Resume: {resume_text[:500]}"
+    # UPDATED: Include Job Title in the prompt
+    combined_text = f"Role: {job_title} | Job: {job_description[:500]} | Resume: {resume_text[:500]}"
     
     labels = ["Highly Qualified", "Qualified", "Partially Qualified", "Not Qualified"]
     
@@ -263,6 +263,7 @@ def assess_candidate_fit(resume_text: str, job_description: str) -> Dict[str, an
             "multi_label": False
         }
     }
+    # ... rest of the function remains the same ...
     
     try:
         print("🔍 Assessing candidate fit...")
@@ -304,7 +305,8 @@ def assess_candidate_fit(resume_text: str, job_description: str) -> Dict[str, an
 
 def parse_resume_from_bytes(file_content: bytes, filename: str, 
                             job_description: str = "", 
-                            job_requirements: str = "") -> Dict[str, any]:
+                            job_requirements: str = "",
+                            job_title: str = "") -> Dict[str, any]: # Added parameter
     """
     Complete resume analysis with job matching
     """
@@ -336,7 +338,8 @@ def parse_resume_from_bytes(file_content: bytes, filename: str,
     
     # 4. Analyze job match
     if job_description or job_requirements:
-        match_analysis = analyze_job_match(text, skills, job_description, job_requirements)
+        # UPDATED: Pass job_title here
+        match_analysis = analyze_job_match(text, skills, job_description, job_requirements, job_title)
     else:
         match_analysis = {
             "match_score": 0,

@@ -12,17 +12,7 @@ python-dotenv
 pypdf
 huggingface_hub
 supabase
-
-
-
 pydantic-settings
 python-dotenv
-
-
-
-
-
-
-
 python-jose[cryptography]
 passlib[bcrypt]

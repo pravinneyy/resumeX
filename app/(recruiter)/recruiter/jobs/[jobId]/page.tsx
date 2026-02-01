@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { useAuth } from "@clerk/nextjs" // <--- 1. Import useAuth
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -39,6 +40,7 @@ interface Application {
 export default function JobDetailsPage() {
   const { jobId } = useParams()
   const router = useRouter()
+  const { getToken, isLoaded } = useAuth() // <--- 2. Get auth helpers
   
   const [applications, setApplications] = useState<Application[]>([])
   const [selectedApp, setSelectedApp] = useState<Application | null>(null)
@@ -60,16 +62,23 @@ export default function JobDetailsPage() {
   })
 
   useEffect(() => {
-    fetchApplications()
-  }, [jobId])
+    if (isLoaded && jobId) {
+        fetchApplications()
+    }
+  }, [isLoaded, jobId])
 
   const fetchApplications = async () => {
     try {
-        const res = await fetch(`http://127.0.0.1:8000/api/jobs/${jobId}/applications`)
+        const token = await getToken() // <--- 3. Get Token
+        const res = await fetch(`http://127.0.0.1:8000/api/jobs/${jobId}/applications`, {
+            headers: {
+                "Authorization": `Bearer ${token}` // <--- 4. Attach Header
+            }
+        })
         if (res.ok) {
             const data = await res.json()
             console.log("Fetched applications:", data)
-            setApplications(data)
+            setApplications(Array.isArray(data) ? data : [])
         }
     } catch (e) { 
         console.error("Failed to fetch applications:", e) 
@@ -79,9 +88,13 @@ export default function JobDetailsPage() {
   const updateStatus = async (appId: number, newStatus: string) => {
       setUpdating(true)
       try {
+          const token = await getToken() // <--- Get Token
           const res = await fetch(`http://127.0.0.1:8000/api/applications/${appId}/status`, {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
+              headers: { 
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}` // <--- Attach Header
+              },
               body: JSON.stringify({ status: newStatus })
           })
 
@@ -101,9 +114,13 @@ export default function JobDetailsPage() {
   const handleSaveAssessment = async () => {
     if (!assessment.questions.length) return alert("Add at least one question")
     try {
+        const token = await getToken() // <--- Get Token
         const res = await fetch("http://127.0.0.1:8000/api/assessments", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}` // <--- Attach Header
+            },
             body: JSON.stringify({ job_id: jobId, ...assessment })
         })
         if (res.ok) alert("Assessment Saved Successfully!")
@@ -132,13 +149,6 @@ export default function JobDetailsPage() {
     if (score >= 60) return <CheckCircle className="w-4 h-4" />
     if (score >= 40) return <AlertTriangle className="w-4 h-4" />
     return <XCircle className="w-4 h-4" />
-  }
-
-  const getProgressColor = (score: number) => {
-    if (score >= 75) return "bg-green-500"
-    if (score >= 60) return "bg-blue-500"
-    if (score >= 40) return "bg-orange-500"
-    return "bg-red-500"
   }
 
   return (

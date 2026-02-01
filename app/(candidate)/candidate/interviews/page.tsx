@@ -1,16 +1,17 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useAuth, useUser } from "@clerk/nextjs" // <--- 1. Import useAuth
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Clock, Code, XCircle, BrainCircuit, ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Code, XCircle, BrainCircuit, ArrowRight, Loader2, CheckCircle2 } from "lucide-react"
 
 export default function InterviewsPage() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  const { getToken } = useAuth() // <--- 2. Get token helper
   const router = useRouter()
   const [applications, setApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -19,30 +20,62 @@ export default function InterviewsPage() {
   // Track completion status locally for UI feedback
   const [completion, setCompletion] = useState<{technical: boolean, psycho: boolean}>({ technical: false, psycho: false })
 
+  // 1. Fetch Applications (Secured)
   useEffect(() => {
-    if (user) {
-        fetch(`http://127.0.0.1:8000/api/candidate/applications?candidateId=${user.id}`)
-            .then(res => res.ok ? res.json() : [])
-            .then(data => setApplications(Array.isArray(data) ? data : []))
-            .catch(err => console.error(err))
-            .finally(() => setLoading(false))
-    }
-  }, [user])
+    const fetchApps = async () => {
+        if (!user || !isLoaded) return
 
-  // Fetch completion status when a job is selected
-  useEffect(() => {
-    if (selectedJob && user) {
-        fetch(`http://127.0.0.1:8000/api/assessments/status/${selectedJob.job_id}/${user.id}`)
-            .then(res => res.json())
-            .then(data => {
-                setCompletion({
-                    technical: data.technical_completed,
-                    psycho: data.psychometric_completed
-                })
+        try {
+            const token = await getToken() // <--- 3. Get Token
+            
+            const res = await fetch(`http://127.0.0.1:8000/api/candidate/applications?candidateId=${user.id}`, {
+                headers: {
+                    "Authorization": `Bearer ${token}` // <--- Attach Header
+                }
             })
-            .catch(() => setCompletion({ technical: false, psycho: false }))
+            
+            const data = res.ok ? await res.json() : []
+            setApplications(Array.isArray(data) ? data : [])
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setLoading(false)
+        }
     }
-  }, [selectedJob, user])
+
+    fetchApps()
+  }, [user, isLoaded, getToken])
+
+  // 2. Fetch Completion Status (Secured)
+  useEffect(() => {
+    const fetchStatus = async () => {
+        if (!selectedJob || !user) return
+
+        try {
+            const token = await getToken() // <--- Get Token
+            
+            // Note: Ensure your backend endpoint for 'status' also expects a token!
+            // If you haven't secured that specific route yet, adding the header won't hurt,
+            // but you should update the backend to verify it.
+            const res = await fetch(`http://127.0.0.1:8000/api/assessments/status/${selectedJob.job_id}/${user.id}`, {
+                headers: {
+                    "Authorization": `Bearer ${token}` // <--- Attach Header
+                }
+            })
+            
+            const data = await res.json()
+            setCompletion({
+                technical: data.technical_completed,
+                psycho: data.psychometric_completed
+            })
+        } catch (err) {
+            console.error(err)
+            setCompletion({ technical: false, psycho: false })
+        }
+    }
+
+    fetchStatus()
+  }, [selectedJob, user, getToken])
 
   const getStatusBadge = (status: string) => {
       if(status === 'Rejected') return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3"/> Rejected</Badge>

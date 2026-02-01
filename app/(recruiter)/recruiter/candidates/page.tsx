@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useAuth, useUser } from "@clerk/nextjs" // <--- 1. Import Auth Hooks
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -20,7 +21,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-// Ensure this component exists, or remove this import if you haven't created it yet
 import VerdictCard from "@/components/recruiter/VerdictCard" 
 
 const statusColors: Record<string, string> = {
@@ -32,31 +32,54 @@ const statusColors: Record<string, string> = {
 }
 
 export default function CandidatesPage() {
+  const { user, isLoaded } = useUser()
+  const { getToken } = useAuth() // <--- 2. Get Token Helper
+
   // Initialize as empty array to be safe
   const [candidates, setCandidates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  // FETCH DATA
+  // FETCH DATA (SECURED)
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/candidates")
-      .then(res => res.json())
-      .then(data => {
-        // FIX: Only set state if data is truly an array
-        if (Array.isArray(data)) {
-            setCandidates(data)
-        } else {
-            console.error("API returned non-array:", data)
-            setCandidates([]) // Fallback to empty list
+    const fetchCandidates = async () => {
+        if (!isLoaded || !user) return
+
+        try {
+            const token = await getToken() // <--- 3. Get the Secure Token
+            
+            // <--- 4. Attach Token to the Request
+            const res = await fetch("http://127.0.0.1:8000/api/candidates", {
+                headers: {
+                    "Authorization": `Bearer ${token}` 
+                }
+            })
+            
+            if (res.status === 401) {
+                console.error("401 Unauthorized: Backend rejected the token.")
+                return
+            }
+
+            const data = await res.json()
+            
+            // FIX: Only set state if data is truly an array
+            if (Array.isArray(data)) {
+                setCandidates(data)
+            } else {
+                console.error("API returned non-array:", data)
+                setCandidates([]) // Fallback to empty list
+            }
+        } catch (err) {
+            console.error("Failed to fetch candidates:", err)
+            setCandidates([])
+        } finally {
+            setLoading(false)
         }
-      })
-      .catch(err => {
-        console.error("Failed to fetch candidates:", err)
-        setCandidates([])
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    }
+
+    fetchCandidates()
+  }, [isLoaded, user, getToken])
 
   // FIX: Safety check before filtering
   const safeCandidates = Array.isArray(candidates) ? candidates : [];
@@ -199,15 +222,12 @@ export default function CandidatesPage() {
                           </span>
                         </span>
                         
-                        {/* --- UPDATED SCORE SECTION --- */}
-                        {/* Matched 'candidate.score' to backend response */}
+                        {/* Score */}
                         <span className="text-muted-foreground">
                           Score: <span className={`font-semibold ${candidate.score >= 60 ? 'text-green-500' : 'text-primary'}`}>
                             {candidate.score || 0} / 100
                           </span>
                         </span>
-                        {/* ----------------------------- */}
-
                       </div>
 
                       {/* --- VIEW DETAILS MODAL --- */}
@@ -225,7 +245,6 @@ export default function CandidatesPage() {
                             </DialogDescription>
                           </DialogHeader>
                           
-                          {/* Ensure VerdictCard component exists */}
                           <VerdictCard 
                             jobId={candidate.job_id || 1} 
                             candidateId={candidate.id} 
@@ -246,4 +265,4 @@ export default function CandidatesPage() {
       </Card>
     </div>
   )
-}
+} 

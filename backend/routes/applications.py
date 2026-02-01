@@ -5,7 +5,8 @@ from models import Application, Job, Candidate
 from typing import Optional
 import uuid
 
-# Import the enhanced AI extraction
+# IMPORT SECURITY DEPENDENCIES
+from utils.security import get_current_user
 from services.ai_extract import parse_resume_from_bytes
 
 router = APIRouter()
@@ -20,8 +21,14 @@ async def apply_for_job(
     candidate_email: Optional[str] = Form(None),
     skills: Optional[str] = Form(None),
     resume: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user) # <--- Validate Token
 ):
+    # SECURITY CHECK: Identity Theft Protection
+    # Ensure the token holder is actually the candidate applying
+    if current_user_id != candidate_id:
+        raise HTTPException(status_code=403, detail="You cannot submit applications for other users.")
+
     print(f"📥 Application received: Job={job_id}, Candidate={candidate_id}")
 
     # 1. Resolve name and email
@@ -31,7 +38,7 @@ async def apply_for_job(
     if not final_name or not final_email:
         raise HTTPException(status_code=422, detail="Missing name or email")
 
-    # 2. Get job details (IMPORTANT: We need this for matching!)
+    # 2. Get job details
     job = db.query(Job).filter(Job.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -39,21 +46,21 @@ async def apply_for_job(
     # 3. Read resume bytes
     resume_bytes = await resume.read()
     
-    # 4. ENHANCED AI ANALYSIS with job matching
+    # 4. ENHANCED AI ANALYSIS
     print("🤖 Starting AI analysis with job matching...")
     try:
         analysis = parse_resume_from_bytes(
             file_content=resume_bytes,
             filename=resume.filename,
             job_description=job.description or "",
-            job_requirements=job.requirements or ""
+            job_requirements=job.requirements or "",
+            job_title=job.title # Pass title for better context
         )
         
+        # Extract results
         ai_summary = analysis.get("summary", "No summary generated")
         detected_skills = analysis.get("skills", [])
         experience = analysis.get("experience", "N/A")
-        
-        # Job matching results
         match_score = analysis.get("match_score", 0)
         verdict = analysis.get("verdict", "Pending Review")
         status = analysis.get("status", "Applied")
@@ -62,15 +69,9 @@ async def apply_for_job(
         recommendation = analysis.get("recommendation", "")
         ai_reasoning = analysis.get("ai_reasoning", "")
         
-        print(f"✅ Analysis complete:")
-        print(f"   Match Score: {match_score}%")
-        print(f"   Verdict: {verdict}")
-        print(f"   Status: {status}")
-        print(f"   Strengths: {', '.join(strengths)}")
-        print(f"   Gaps: {', '.join(gaps)}")
-        
     except Exception as e:
         print(f"⚠️ AI Analysis failed: {e}")
+        # Fallback values
         ai_summary = "AI analysis unavailable"
         detected_skills = []
         experience = "N/A"
@@ -88,8 +89,6 @@ async def apply_for_job(
         file_ext = resume.filename.split(".")[-1]
         unique_filename = f"{candidate_id}_{uuid.uuid4().hex[:8]}.{file_ext}"
         
-        print(f"📤 Uploading to Supabase: {unique_filename}")
-        
         if supabase:
             supabase.storage.from_("resumes").upload(
                 path=unique_filename,
@@ -97,7 +96,6 @@ async def apply_for_job(
                 file_options={"content-type": resume.content_type}
             )
             resume_url = unique_filename
-            print("✅ Upload successful")
         else:
             raise Exception("Supabase client not initialized")
             
@@ -107,8 +105,6 @@ async def apply_for_job(
 
     # 6. Create/Update candidate
     candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
-    
-    # Convert skills list to comma-separated string
     skills_str = ",".join(detected_skills) if detected_skills else "General"
     
     if not candidate:
@@ -128,7 +124,7 @@ async def apply_for_job(
     
     db.commit()
 
-    # 7. Create application with DETAILED NOTES
+    # 7. Create application
     existing_app = db.query(Application).filter(
         Application.job_id == job_id,
         Application.candidate_id == candidate_id
@@ -137,7 +133,6 @@ async def apply_for_job(
     if existing_app:
         return {"message": "You have already applied for this job."}
 
-    # Format detailed notes for storage
     detailed_notes = f"""{ai_summary}
 
 EXPERIENCE: {experience}
@@ -155,27 +150,18 @@ RECOMMENDATION: {recommendation}
     new_app = Application(
         job_id=job_id,
         candidate_id=candidate_id,
-        status=status,  # AI-determined status
+        status=status,
         notes=detailed_notes,
-        final_grade=match_score  # Store match score as grade
+        final_grade=match_score
     )
     db.add(new_app)
     db.commit()
     
-    print(f"✅ Application created with {status} status")
-    
     return {
         "message": "Application submitted successfully!",
         "analysis": {
-            "summary": ai_summary,
-            "skills": detected_skills,
-            "experience": experience,
             "match_score": match_score,
-            "verdict": verdict,
-            "status": status,
-            "strengths": strengths,
-            "gaps": gaps,
-            "recommendation": recommendation
+            "verdict": verdict
         }
     }
 
@@ -184,13 +170,28 @@ RECOMMENDATION: {recommendation}
 def update_application_status(
     application_id: int, 
     status: dict, 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user) # <--- Validate Token
 ):
-    """Update application status manually"""
+    """
+    Update application status.
+    SECURED: Only the recruiter who owns the job can change the status.
+    """
+    # 1. Get the application
     app = db.query(Application).filter(Application.id == application_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
     
+    # 2. Get the job associated with this application
+    job = db.query(Job).filter(Job.id == app.job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job associated with application not found")
+
+    # 3. SECURITY CHECK: Does this job belong to the requester?
+    if job.recruiter_id != current_user_id:
+        print(f"⛔ Unauthorized status change attempt by {current_user_id} on app {application_id}")
+        raise HTTPException(status_code=403, detail="You are not authorized to update this application.")
+
     app.status = status.get("status")
     db.commit()
     
@@ -198,8 +199,17 @@ def update_application_status(
 
 
 @router.get("/candidate/applications")
-def get_candidate_applications(candidateId: str, db: Session = Depends(get_db)):
+def get_candidate_applications(
+    candidateId: str, 
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user) # <--- Validate Token
+):
     """Get all applications for a candidate"""
+    
+    # SECURITY CHECK: Users can only see their own applications
+    if current_user_id != candidateId:
+        raise HTTPException(status_code=403, detail="Unauthorized access to application history")
+
     apps = db.query(Application).filter(Application.candidate_id == candidateId).all()
     
     return [{

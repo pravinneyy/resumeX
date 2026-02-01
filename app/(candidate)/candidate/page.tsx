@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useAuth, useUser } from "@clerk/nextjs" // <--- 1. Import useAuth
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,33 +13,47 @@ import {
 } from "lucide-react"
 
 export default function CandidateDashboard() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  const { getToken } = useAuth() // <--- 2. Get token helper
   const router = useRouter()
   const [stats, setStats] = useState({ applied: 0, assessments: 0, offers: 0 })
   const [activeTask, setActiveTask] = useState<any>(null)
 
-  // Mock fetching dashboard data
+  // Fetch dashboard data
   useEffect(() => {
-    if (user) {
-        // In a real app, fetch from /api/candidate/dashboard-stats
-        // For now, we simulate data or fetch applications to count
-        fetch(`http://127.0.0.1:8000/api/candidate/applications?candidateId=${user.id}`)
-            .then(res => res.json())
-            .then(data => {
-                if (Array.isArray(data)) {
-                    const assessmentCount = data.filter((a: any) => a.status === 'Assessment').length
-                    setStats({
-                        applied: data.length,
-                        assessments: assessmentCount,
-                        offers: 0
-                    })
-                    // Find first pending assessment
-                    const task = data.find((a: any) => a.status === 'Assessment')
-                    if (task) setActiveTask(task)
+    const fetchDashboardData = async () => {
+        if (!user || !isLoaded) return
+
+        try {
+            const token = await getToken() // <--- 3. Get Token
+            
+            // <--- 4. Attach Token to Request
+            const res = await fetch(`http://127.0.0.1:8000/api/candidate/applications?candidateId=${user.id}`, {
+                headers: {
+                    "Authorization": `Bearer ${token}`
                 }
             })
+            
+            const data = await res.json()
+
+            if (Array.isArray(data)) {
+                const assessmentCount = data.filter((a: any) => a.status === 'Assessment').length
+                setStats({
+                    applied: data.length,
+                    assessments: assessmentCount,
+                    offers: 0 // You can filter for 'Offer' status here if you have it
+                })
+                // Find first pending assessment
+                const task = data.find((a: any) => a.status === 'Assessment')
+                if (task) setActiveTask(task)
+            }
+        } catch (error) {
+            console.error("Failed to load dashboard data:", error)
+        }
     }
-  }, [user])
+
+    fetchDashboardData()
+  }, [user, isLoaded, getToken])
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">
@@ -129,7 +143,7 @@ export default function CandidateDashboard() {
          </Card>
       </div>
 
-      {/* 4. RECENT ACTIVITY / JOB FEED (Simplified) */}
+      {/* 4. RECENT ACTIVITY / JOB FEED */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
          {/* Left: Recommended Jobs */}
          <div className="lg:col-span-2 space-y-4">
@@ -138,7 +152,7 @@ export default function CandidateDashboard() {
                 <Button variant="link" onClick={() => router.push("/candidate/jobs")}>View All</Button>
             </div>
             
-            {/* Hardcoded Sample for UI feel - dynamic data comes from API */}
+            {/* Hardcoded Sample for UI feel - ideally this should also be dynamic */}
             {[1, 2].map((i) => (
                 <div key={i} className="group flex items-center justify-between p-4 border rounded-xl hover:border-primary/50 transition-all cursor-pointer bg-card">
                     <div className="flex items-center gap-4">
@@ -156,7 +170,7 @@ export default function CandidateDashboard() {
                             </div>
                         </div>
                     </div>
-                    <Button variant="outline" size="sm">Apply</Button>
+                    <Button variant="outline" size="sm" onClick={() => router.push("/candidate/jobs")}>Apply</Button>
                 </div>
             ))}
          </div>
