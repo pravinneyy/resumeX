@@ -1,24 +1,23 @@
 "use client"
 
+import React, { useEffect } from "react" // Added React import
 import { useUser, SignUp, ClerkLoaded, ClerkLoading } from "@clerk/nextjs"
-import { BackgroundElements } from "@/components/background-elements"
+// Ensure this file actually exists at /components/background-elements.tsx
+import { BackgroundElements } from "@/components/background-elements" 
 import { CheckCircle, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 
 export default function WorkWithUsPage() {
   const { isSignedIn, isLoaded } = useUser()
   const router = useRouter()
 
-  // 1. If they are ALREADY logged in, force them to Recruiter Dashboard
   useEffect(() => {
     if (isLoaded && isSignedIn) {
       router.push("/recruiter")
     }
   }, [isLoaded, isSignedIn, router])
 
-  // While checking or if already signed in, show a loading spinner
   if (!isLoaded || isSignedIn) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-[#0f0505]">
@@ -68,7 +67,6 @@ export default function WorkWithUsPage() {
 
       {/* RIGHT SIDE - FORM CONTAINER */}
       <div className="w-full lg:w-1/2 bg-[#1a0505] flex flex-col items-center justify-center p-8 relative border-l border-[#2d1010]">
-        
         <div className="w-full max-w-md space-y-6">
             <div className="text-center lg:text-left space-y-2">
                 <h2 className="text-3xl font-bold text-white">
@@ -88,27 +86,24 @@ export default function WorkWithUsPage() {
 
               <ClerkLoaded>
                 <SignUp 
-                    path="/auth/work-with-us" 
-                    routing="path"
-                    forceRedirectUrl="/recruiter"
-                    // --- CHANGED: Point to self to avoid 404 on deleted folder ---
-                    signInUrl="/auth/work-with-us"
-                    // -------------------------------------------------------------
-                    unsafeMetadata={{
+                  path="/auth/work-with-us" 
+                  routing="path"
+                  forceRedirectUrl="/recruiter" 
+                  signInUrl="/auth/work-with-us"
+                  // This is the line that actually creates the role
+                  unsafeMetadata={{
                       role: "recruiter"
-                    }}
-                    appearance={clerkAppearance} 
+                  }}
+                  appearance={clerkAppearance} 
                 />
               </ClerkLoaded>
             </div>
 
             <div className="text-center pt-4">
-                {/* --- CHANGED: Point to self to avoid 404 --- */}
                 <Link href="/auth/work-with-us" className="text-[#ff8080] hover:underline text-sm font-medium">
                     Already have an account? Log in here
                 </Link>
             </div>
-
         </div>
       </div>
     </div>

@@ -3,14 +3,19 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Menu, X, ArrowRight } from "lucide-react"
+import { Menu, X, ArrowRight, Briefcase } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { UserButton, SignedIn, SignedOut, ClerkLoaded, ClerkLoading } from "@clerk/nextjs"
+import { UserButton, SignedIn, SignedOut, ClerkLoaded, ClerkLoading, useUser } from "@clerk/nextjs"
 import { dark } from "@clerk/themes" 
 
 export function Header() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  
+  const { user } = useUser()
+  
+  const role = user?.unsafeMetadata?.role as string
+  const dashboardHref = role === "recruiter" ? "/recruiter" : "/candidate"
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20)
@@ -19,23 +24,30 @@ export function Header() {
   }, [])
 
   const AuthButtons = () => (
-    <div className="flex items-center gap-4">
-      {/* UPDATED: Candidate Log In now points to /auth/signup */}
-      <Link href="/auth/signup">
+    <div className="flex items-center gap-3">
+      {/* Recruiter / Business Entry */}
+      <Link href="/auth/work-with-us">
+        <Button
+          variant="ghost"
+          className="text-[#ff8080] hover:text-[#ff9999] hover:bg-[#2d1010] border border-[#5a3030]/50"
+        >
+          <Briefcase className="w-4 h-4 mr-2" />
+          Recruiter Login
+        </Button>
+      </Link>
+
+      <Link href="/auth/signin">
         <Button
           variant="ghost"
           className="text-[#d0b8b8] hover:text-white hover:bg-[#2d1010]"
         >
-          Candidate Log In
+          Sign In
         </Button>
       </Link>
       
-      {/* Business / Recruiter CTA */}
-      <Link href="/auth/work-with-us">
-        <Button
-          className="bg-[#ff8080] text-[#1a0808] font-bold hover:bg-[#ff9999] transition-all duration-300 shadow-[0_0_10px_rgba(255,128,128,0.3)]"
-        >
-          Work with Us
+      <Link href="/auth/signup">
+        <Button className="bg-[#ff8080] text-[#1a0808] font-bold hover:bg-[#ff9999] transition-all duration-300 shadow-[0_0_15px_rgba(255,128,128,0.2)]">
+          Get Started
         </Button>
       </Link>
     </div>
@@ -44,9 +56,12 @@ export function Header() {
   return (
     <header className={cn("fixed top-0 left-0 right-0 z-50 transition-all duration-500", isScrolled ? "bg-[#2d1010]/80 backdrop-blur-md border-b border-[#5a3030]/30" : "bg-transparent")}>
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="text-2xl font-bold text-[#ffb3b3]">ResumeX</Link>
+        <Link href="/" className="text-2xl font-bold text-[#ffb3b3] tracking-tighter">
+          Resume<span className="text-white">X</span>
+        </Link>
 
-        <div className="hidden md:flex items-center gap-3 justify-end">
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-3">
           <ClerkLoading>
             <div className="h-9 w-24 bg-[#5a3030]/50 rounded animate-pulse" />
           </ClerkLoading>
@@ -54,8 +69,8 @@ export function Header() {
           <ClerkLoaded>
             <SignedIn>
               <div className="flex items-center gap-4">
-                <Link href="/dashboard">
-                  <Button className="bg-[#ff8080] hover:bg-[#ff9999] text-[#1a0808] font-bold rounded-full px-6 transition-all shadow-lg shadow-[#ff8080]/20">
+                <Link href={dashboardHref}>
+                  <Button className="bg-[#ff8080] hover:bg-[#ff9999] text-[#1a0808] font-bold rounded-full px-6 transition-all shadow-lg shadow-[#ff8080]/10">
                     Go to Dashboard <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 </Link>
@@ -67,15 +82,8 @@ export function Header() {
                     variables: {
                       colorPrimary: "#ff8080",
                       colorBackground: "#1a0505",
-                      colorText: "#ffffff",
                     },
                     elements: {
-                      userButtonPopoverCard: "bg-[#1a0505] border border-[#5a3030] shadow-2xl",
-                      userButtonPopoverHeaderText: "text-white",
-                      userButtonPopoverHeaderSubtitle: "text-[#b8a0a0]",
-                      userButtonPopoverActionButton: "text-[#d0b8b8] hover:bg-[#2d1010] hover:text-[#ff8080]",
-                      userButtonPopoverActionButtonText: "text-[#d0b8b8] hover:text-[#ff8080]",
-                      userButtonPopoverActionButtonIcon: "text-[#ff8080]",
                       userButtonPopoverFooter: "hidden" 
                     }
                   }}
@@ -88,34 +96,34 @@ export function Header() {
           </ClerkLoaded>
         </div>
 
+        {/* Mobile Toggle */}
         <button className="md:hidden text-[#ebd0d0]" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
 
-      <div className={cn("md:hidden overflow-hidden transition-all duration-500", isMobileMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0")}>
-        <div className="bg-[#2d1010]/95 px-6 py-4 border-b border-[#5a3030]/30">
+      {/* Mobile Menu */}
+      <div className={cn("md:hidden overflow-hidden transition-all duration-500", isMobileMenuOpen ? "max-h-80 opacity-100" : "max-h-0 opacity-0")}>
+        <div className="bg-[#1a0505]/95 px-6 py-6 border-b border-[#5a3030]/30 space-y-4">
           <ClerkLoaded>
             <SignedIn>
-              <div className="flex flex-col gap-4">
-                <Link href="/dashboard" className="w-full">
-                  <Button className="w-full bg-[#ff8080] text-[#1a0808] font-bold rounded-full">Go to Dashboard</Button>
-                </Link>
-                <div className="flex justify-center">
-                  <UserButton afterSignOutUrl="/" appearance={{ baseTheme: dark }} />
-                </div>
-              </div>
+              <Link href={dashboardHref} className="w-full block">
+                <Button className="w-full bg-[#ff8080] text-[#1a0808] font-bold rounded-full">Go to Dashboard</Button>
+              </Link>
             </SignedIn>
             <SignedOut>
-              <div className="flex flex-col gap-3">
-                {/* UPDATED: Mobile Menu link changed to /auth/signup */}
-                <Link href="/auth/signup" className="w-full">
-                  <Button className="w-full bg-[#2d1010] text-[#d0b8b8] border border-[#5a3030]">Candidate Log In</Button>
-                </Link>
-                <Link href="/auth/work-with-us" className="w-full">
-                  <Button className="w-full bg-[#ff8080] text-[#1a0808] font-bold">Work with Us</Button>
-                </Link>
-              </div>
+              <Link href="/auth/work-with-us" className="w-full block">
+                <Button variant="outline" className="w-full border-[#5a3030] text-[#ff8080]">
+                  <Briefcase className="w-4 h-4 mr-2 inline" />
+                  Recruiter Portal
+                </Button>
+              </Link>
+              <Link href="/auth/signin" className="w-full block">
+                <Button variant="ghost" className="w-full text-[#d0b8b8]">Sign In</Button>
+              </Link>
+              <Link href="/auth/signup" className="w-full block">
+                <Button className="w-full bg-[#ff8080] text-[#1a0808] font-bold">Join as Candidate</Button>
+              </Link>
             </SignedOut>
           </ClerkLoaded>
         </div>

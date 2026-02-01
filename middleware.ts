@@ -14,46 +14,49 @@ const isCandidateRoute = createRouteMatcher(["/candidate(.*)"]);
 export default clerkMiddleware(async (auth, req) => {
   const { userId, sessionClaims } = await auth();
 
-  // 2. THE SORTING HAT LOGIC
-  // If the user is logged in and is on the Landing Page ('/'),
-  // redirect them to their specific dashboard immediately.
-  if (userId && req.nextUrl.pathname === "/") {
-    const role = (sessionClaims?.metadata as any)?.role;
-    if (role === "recruiter") {
-      return NextResponse.redirect(new URL("/recruiter", req.url));
-    } else {
-      // Default to candidate if role is missing or is 'candidate'
-      return NextResponse.redirect(new URL("/candidate", req.url));
-    }
-  }
-
-  // 3. Protect Recruiter Routes
-// ... inside middleware ...
-  if (isRecruiterRoute(req)) {
-    const role = (sessionClaims?.metadata as any)?.role;
-    // If role is NOT recruiter, kick them out
-    if (role !== "recruiter") {
-      return NextResponse.redirect(new URL("/candidate", req.url));
-    }
-  }
-// ...
-
-  // 4. Protect Candidate Routes (Optional but good)
-  if (isCandidateRoute(req)) {
-     const role = (sessionClaims?.metadata as any)?.role;
-     if (role === "recruiter") {
-       return NextResponse.redirect(new URL("/recruiter", req.url));
-     }
-  }
-
-  // 5. Allow public routes (like sign-in pages) to load
+  // 1. PUBLIC ROUTES: Always allow
   if (isPublicRoute(req)) {
     return NextResponse.next();
   }
 
-  // 6. Catch-all: If not public and not logged in, force sign-in
+  // 2. FORCE SIGN-IN
   if (!userId) {
     return (await auth()).redirectToSignIn();
+  }
+
+  // 3. GET ROLE
+// Inside your middleware.ts
+const metadata = (sessionClaims?.metadata as any) || {};
+const role = metadata.role;
+
+console.log(`--- Auth Debug --- User: ${userId} | Role: ${role}`);
+
+
+  // 4. PROTECT RECRUITER ROUTES
+  if (isRecruiterRoute(req)) {
+    if (role === "candidate") {
+      return NextResponse.redirect(new URL("/candidate", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // 5. PROTECT CANDIDATE ROUTES
+  if (isCandidateRoute(req)) {
+    if (role === "recruiter") {
+      return NextResponse.redirect(new URL("/recruiter", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // 6. ROOT REDIRECT (Sorting Hat)
+  if (req.nextUrl.pathname === "/") {
+    if (role === "recruiter") {
+      return NextResponse.redirect(new URL("/recruiter", req.url));
+    } else if (role === "candidate") {
+      return NextResponse.redirect(new URL("/candidate", req.url));
+    }
+    // If role is missing, stay on landing page to avoid loops
+    return NextResponse.next();
   }
 
   return NextResponse.next();
