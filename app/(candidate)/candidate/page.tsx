@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { 
-  Briefcase, Clock, Code, CheckCircle2, ArrowRight, 
-  Sparkles, Target, Zap 
+    Briefcase, Clock, Code, CheckCircle2, ArrowRight, 
+    Sparkles, Target, Zap 
 } from "lucide-react"
 
 export default function CandidateDashboard() {

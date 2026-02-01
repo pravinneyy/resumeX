@@ -437,9 +437,14 @@ export default function CreateAssessmentPage() {
             <h2 className="text-xl font-semibold flex items-center gap-2">
                 <Code2 className="w-5 h-5" /> Technical Questions ({questions.length})
             </h2>
-            <Button onClick={addQuestion} variant="outline" className="gap-2 border-dashed">
-                <Plus className="w-4 h-4" /> Add Question
-            </Button>
+            <div className="flex gap-2">
+                <Button onClick={() => { setShowCreateNew(true); setShowAddDialog(true); }} variant="outline" className="gap-2">
+                    <Plus className="w-4 h-4" /> Add Question
+                </Button>
+                <Button onClick={() => { setShowCreateNew(false); setShowAddDialog(true); }} variant="outline" className="gap-2 border-dashed">
+                    <Code2 className="w-4 h-4" /> Select from Existing
+                </Button>
+            </div>
         </div>
 
         {questions.map((q, index) => (

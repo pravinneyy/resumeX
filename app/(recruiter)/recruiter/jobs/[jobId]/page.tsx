@@ -246,20 +246,7 @@ export default function JobDetailsPage() {
                         <div className="space-y-4 border-t pt-4">
                             <h3 className="font-semibold flex items-center justify-between">
                                 Questions 
-                                <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    onClick={() => setAssessment({
-                                        ...assessment, 
-                                        questions: [...assessment.questions, { 
-                                            title: "", 
-                                            problem_text: "", 
-                                            test_input: "", 
-                                            test_output: "", 
-                                            points: 10 
-                                        }]
-                                    })}
-                                >
+                                <Button variant="outline" size="sm" onClick={() => router.push(`/recruiter/jobs/${jobId}/create-assessment`)}>
                                     <Plus className="w-4 h-4 mr-2"/> Add Question
                                 </Button>
                             </h3>
