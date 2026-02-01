@@ -17,7 +17,11 @@ if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # Create Engine
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, 
+    pool_pre_ping=True,   # <--- ADD THIS LINE (The most important fix)
+    pool_recycle=1800     # <--- OPTIONAL: Recycle connections every 30 mins
+)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

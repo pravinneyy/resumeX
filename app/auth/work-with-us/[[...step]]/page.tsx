@@ -90,18 +90,22 @@ export default function WorkWithUsPage() {
                 <SignUp 
                     path="/auth/work-with-us" 
                     routing="path"
-                    // Ensures new recruiter accounts land in the right place
-                    forceRedirectUrl="/recruiter" 
-                    // Updated to use the role parameter we set up in the SignIn page
-                    signInUrl="/auth/signin?role=recruiter"
+                    forceRedirectUrl="/recruiter"
+                    // --- CHANGED: Point to self to avoid 404 on deleted folder ---
+                    signInUrl="/auth/work-with-us"
+                    // -------------------------------------------------------------
+                    unsafeMetadata={{
+                      role: "recruiter"
+                    }}
                     appearance={clerkAppearance} 
                 />
               </ClerkLoaded>
             </div>
 
             <div className="text-center pt-4">
-                <Link href="/auth/signin?role=recruiter" className="text-[#ff8080] hover:underline text-sm font-medium">
-                    Already have an account? Log in as Recruiter
+                {/* --- CHANGED: Point to self to avoid 404 --- */}
+                <Link href="/auth/work-with-us" className="text-[#ff8080] hover:underline text-sm font-medium">
+                    Already have an account? Log in here
                 </Link>
             </div>
 

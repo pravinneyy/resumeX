@@ -20,8 +20,8 @@ export function Header() {
 
   const AuthButtons = () => (
     <div className="flex items-center gap-4">
-      {/* Candidate / Standard Log In */}
-      <Link href="/auth/signin">
+      {/* UPDATED: Candidate Log In now points to /auth/signup */}
+      <Link href="/auth/signup">
         <Button
           variant="ghost"
           className="text-[#d0b8b8] hover:text-white hover:bg-[#2d1010]"
@@ -108,7 +108,8 @@ export function Header() {
             </SignedIn>
             <SignedOut>
               <div className="flex flex-col gap-3">
-                <Link href="/auth/signin" className="w-full">
+                {/* UPDATED: Mobile Menu link changed to /auth/signup */}
+                <Link href="/auth/signup" className="w-full">
                   <Button className="w-full bg-[#2d1010] text-[#d0b8b8] border border-[#5a3030]">Candidate Log In</Button>
                 </Link>
                 <Link href="/auth/work-with-us" className="w-full">
