@@ -1,165 +1,152 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useUser } from "@clerk/nextjs"
+import { useAuth, useUser } from "@clerk/nextjs" // <--- 1. CHANGED: Import useAuth
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Users, Briefcase, BarChart3, Loader2 } from "lucide-react"
+import { Plus, MapPin, Users, Loader2 } from "lucide-react"
 
 export default function RecruiterDashboard() {
   const { user, isLoaded } = useUser()
+  const { getToken } = useAuth() // <--- 2. ADDED: Get token helper
   const router = useRouter()
   const [jobs, setJobs] = useState<any[]>([])
-  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
   
-  // Form State
-  const [formData, setFormData] = useState({
-    title: "",
-    company: "",
-    location: "Remote",
-    salary: "$100k - $120k",
-    type: "Full-time",
-    skills: "Python, React, SQL" 
+  // Create Job State
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [newJob, setNewJob] = useState({
+      title: "", company: "", location: "", salary: "", type: "Full-time", skills: "", description: ""
   })
+  const [creating, setCreating] = useState(false)
 
+  // <--- 3. UPDATED: Wait for auth to load before fetching
   useEffect(() => {
-    if (isLoaded && user) {
-        fetch("http://127.0.0.1:8000/api/jobs")
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to fetch jobs")
-                return res.json()
-            })
-            // FIX: Ensure data is always an array
-            .then(data => setJobs(Array.isArray(data) ? data : []))
-            .catch(err => {
-                console.error("Error fetching jobs:", err)
-                setJobs([]) // Fallback to empty list
-            })
-    }
-  }, [isLoaded, user])
+     if (isLoaded) {
+        fetchJobs()
+     }
+  }, [isLoaded])
+
+  const fetchJobs = async () => {
+     try {
+         const token = await getToken() // <--- 4. GET TOKEN
+         
+         // <--- 5. ATTACH HEADER
+         const res = await fetch("http://127.0.0.1:8000/api/jobs", {
+             headers: {
+                 "Authorization": `Bearer ${token}` 
+             }
+         })
+         const data = await res.json()
+         setJobs(Array.isArray(data) ? data : [])
+     } catch (e) { console.error(e) } 
+     finally { setLoading(false) }
+  }
 
   const handleCreateJob = async () => {
-    if (!user) return alert("You must be logged in")
-
-    try {
-        const res = await fetch("http://127.0.0.1:8000/api/jobs", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                ...formData,
-                recruiter_id: user.id
-            })
-        })
-
-        if (res.ok) {
-            setOpen(false)
-            alert("Job Posted Successfully!")
-            window.location.reload()
-        } else {
-            const errorText = await res.text()
-            console.error("Failed to create job:", errorText)
-            alert("Failed to create job. Check console for details.")
-        }
-    } catch (error) {
-        console.error("Network error:", error)
-        alert("Network error occurred.")
-    }
+     if (!user) return
+     setCreating(true)
+     try {
+         const token = await getToken() // <--- 6. GET TOKEN FOR POST
+         
+         const res = await fetch("http://127.0.0.1:8000/api/jobs", {
+             method: "POST",
+             headers: { 
+                 "Content-Type": "application/json",
+                 "Authorization": `Bearer ${token}` // <--- 7. ATTACH HEADER
+             },
+             body: JSON.stringify({
+                 ...newJob,
+                 // Note: We don't need to send recruiter_id manually anymore
+             })
+         })
+         
+         if (res.ok) {
+             fetchJobs() // Refresh the list
+             setIsModalOpen(false)
+             setNewJob({ title: "", company: "", location: "", salary: "", type: "Full-time", skills: "", description: "" })
+         } else {
+             alert("Failed to create job")
+         }
+     } catch (e) { console.error(e) }
+     finally { setCreating(false) }
   }
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in">
         <div className="flex justify-between items-center">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Recruiter Dashboard</h1>
+                <h1 className="text-3xl font-bold">Recruiter Dashboard</h1>
                 <p className="text-muted-foreground">Manage your job postings and candidates.</p>
             </div>
-            
-            <div className="flex gap-2">
-                <Button variant="outline" className="gap-2" onClick={() => router.push("/recruiter/analytics")}>
-                    <BarChart3 className="w-4 h-4"/> Global Analytics
-                </Button>
+            <Button onClick={() => setIsModalOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Post New Job
+            </Button>
+        </div>
 
-                <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="gap-2"><Plus className="w-4 h-4"/> Post New Job</Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle>Create Job Posting</DialogTitle>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid gap-2">
-                                <Label>Job Title</Label>
-                                <Input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="e.g. Senior React Developer" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Company</Label>
-                                <Input value={formData.company} onChange={e => setFormData({...formData, company: e.target.value})} placeholder="e.g. Acme Corp" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label>Location</Label>
-                                    <Input value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label>Salary Range</Label>
-                                    <Input value={formData.salary} onChange={e => setFormData({...formData, salary: e.target.value})} />
-                                </div>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Required Skills (comma separated)</Label>
-                                <Input value={formData.skills} onChange={e => setFormData({...formData, skills: e.target.value})} placeholder="Python, AWS, Docker"/>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Job Type</Label>
-                                <Select onValueChange={(val) => setFormData({...formData, type: val})} defaultValue={formData.type}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Full-time">Full-time</SelectItem>
-                                        <SelectItem value="Contract">Contract</SelectItem>
-                                        <SelectItem value="Internship">Internship</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={handleCreateJob}>Create Job</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+        {loading ? (
+            <div className="flex justify-center py-10">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-        </div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {jobs.length === 0 ? (
+                    <div className="col-span-full text-center py-10 text-muted-foreground border rounded-lg bg-muted/20">
+                        No jobs posted yet. Create your first one!
+                    </div>
+                ) : (
+                    jobs.map(job => (
+                        <Card key={job.id} className="hover:border-primary transition-all cursor-pointer group" onClick={() => router.push(`/recruiter/jobs/${job.id}`)}>
+                            <CardHeader>
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <CardTitle className="group-hover:text-primary transition-colors">{job.title}</CardTitle>
+                                        <CardDescription>{job.company}</CardDescription>
+                                    </div>
+                                    <Badge variant="secondary">{job.type}</Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2 text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-2"><MapPin className="w-4 h-4" /> {job.location}</div>
+                                    <div className="flex items-center gap-2"><Users className="w-4 h-4" /> View Applicants</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
+            </div>
+        )}
 
-        {/* JOB LIST */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {jobs.map(job => (
-                <Card 
-                    key={job.id} 
-                    className="hover:border-primary transition-all cursor-pointer group"
-                    onClick={() => router.push(`/recruiter/jobs/${job.id}`)}
-                >
-                    <CardHeader>
-                        <CardTitle className="group-hover:text-primary transition-colors">{job.title}</CardTitle>
-                        <CardDescription>{job.company} • {job.location}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex justify-between items-center text-sm text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                                <Briefcase className="w-4 h-4" /> {job.type}
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Users className="w-4 h-4" /> View Applicants
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader><DialogTitle>Post a New Job</DialogTitle></DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Job Title</Label><Input value={newJob.title} onChange={(e) => setNewJob({...newJob, title: e.target.value})} /></div>
+                        <div className="space-y-2"><Label>Company</Label><Input value={newJob.company} onChange={(e) => setNewJob({...newJob, company: e.target.value})} /></div>
+                    </div>
+                    <div className="space-y-2"><Label>Description</Label><Textarea value={newJob.description} onChange={(e) => setNewJob({...newJob, description: e.target.value})} /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>Location</Label><Input value={newJob.location} onChange={(e) => setNewJob({...newJob, location: e.target.value})} /></div>
+                        <div className="space-y-2"><Label>Salary Range</Label><Input value={newJob.salary} onChange={(e) => setNewJob({...newJob, salary: e.target.value})} /></div>
+                    </div>
+                    <div className="space-y-2"><Label>Required Skills (comma separated)</Label><Input value={newJob.skills} onChange={(e) => setNewJob({...newJob, skills: e.target.value})} /></div>
+                </div>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                    <Button onClick={handleCreateJob} disabled={creating}>
+                        {creating ? <Loader2 className="animate-spin w-4 h-4" /> : "Create Job"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   )
 }

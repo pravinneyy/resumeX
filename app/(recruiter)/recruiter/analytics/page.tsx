@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { BarChart, Trophy, TrendingUp, Users, ArrowUpRight, Loader2 } from "lucide-react"
+
 import { useRouter } from "next/navigation"
 
 export default function AnalyticsPage() {
@@ -21,7 +22,7 @@ export default function AnalyticsPage() {
     async function fetchData() {
       try {
         // 1. Fetch All Jobs
-        const jobsRes = await fetch("http://127.0.0.1:8000/api/jobs")
+        const jobsRes = await fetch('http://127.0.0.1:8000/api/jobs')
         let jobs = []
 
         if (jobsRes.ok) {

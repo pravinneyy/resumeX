@@ -1,32 +1,23 @@
 "use client"
 
-import { useEffect } from "react" // 👈 Added this import
+import React, { useEffect } from "react" 
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { FileText, CheckCircle, BrainCircuit, ArrowRight, ShieldCheck, Sparkles } from "lucide-react"
 
 export default function CandidatePage() {
-  const router = useRouter()
 
-  // 👇 ADDED THIS: Forces the page to scroll to the top on load
+  // Forces the page to scroll to the top on load
   useEffect(() => {
     window.scrollTo(0, 0)
   }, [])
 
-  // Helper to redirect to Home and open the modal
-  const handleAuthRedirect = (mode: "signin" | "signup") => {
-    router.push(`/?modal=${mode}`)
-  }
-
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-[#ff8080] selection:text-black overflow-y-auto">
-      {/* Reusing your Header with redirect logic */}
-      <Header 
-        onSignInClick={() => handleAuthRedirect("signin")} 
-        onSignUpClick={() => handleAuthRedirect("signup")} 
-      />
+      {/* Updated Header - No longer needs custom props as it handles auth internally */}
+      <Header />
 
       <main className="pt-32 pb-20">
         
@@ -50,23 +41,23 @@ export default function CandidatePage() {
           </p>
 
           <div className="flex justify-center gap-4">
-            <Button 
-              onClick={() => handleAuthRedirect("signup")}
-              className="bg-[#ff8080] text-[#1a0808] hover:bg-[#ff9999] px-8 py-6 rounded-full text-lg font-bold transition-transform hover:scale-105"
-            >
-              Check My Resume Score
-              <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
+            {/* UPDATED: Points directly to your Unified Signup */}
+            <Link href="/auth/signup">
+                <Button 
+                className="bg-[#ff8080] text-[#1a0808] hover:bg-[#ff9999] px-8 py-6 rounded-full text-lg font-bold transition-transform hover:scale-105"
+                >
+                Check My Resume Score
+                <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+            </Link>
           </div>
         </section>
 
         {/* --- THE AI PIPELINE VISUAL --- */}
         <section className="px-6 max-w-6xl mx-auto mb-32">
           <div className="grid md:grid-cols-3 gap-8 relative">
-            {/* Connector Line (Desktop) */}
             <div className="hidden md:block absolute top-12 left-0 w-full h-0.5 bg-gradient-to-r from-[#5a3030] via-[#ff8080] to-[#5a3030] opacity-20 -z-10"></div>
 
-            {/* Step 1 */}
             <div className="bg-[#120505] p-8 rounded-2xl border border-[#3a1515] hover:border-[#ff8080] transition-all group">
               <div className="w-16 h-16 bg-[#2d1010] rounded-full flex items-center justify-center mb-6 border border-[#5a3030] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,128,128,0.2)]">
                 <FileText className="w-8 h-8 text-[#ff8080]" />
@@ -75,7 +66,6 @@ export default function CandidatePage() {
               <p className="text-[#b8a0a0]">We extract your skills, not just keywords. Our engine understands that "React" implies "JavaScript" mastery.</p>
             </div>
 
-            {/* Step 2 */}
             <div className="bg-[#120505] p-8 rounded-2xl border border-[#3a1515] hover:border-[#ff8080] transition-all group">
               <div className="w-16 h-16 bg-[#2d1010] rounded-full flex items-center justify-center mb-6 border border-[#5a3030] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,128,128,0.2)]">
                 <BrainCircuit className="w-8 h-8 text-[#ff8080]" />
@@ -84,7 +74,6 @@ export default function CandidatePage() {
               <p className="text-[#b8a0a0]">The AI compares your profile to the job instantly, identifying exactly where you match and where you don't.</p>
             </div>
 
-            {/* Step 3 */}
             <div className="bg-[#120505] p-8 rounded-2xl border border-[#3a1515] hover:border-[#ff8080] transition-all group">
               <div className="w-16 h-16 bg-[#2d1010] rounded-full flex items-center justify-center mb-6 border border-[#5a3030] group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(255,128,128,0.2)]">
                 <ShieldCheck className="w-8 h-8 text-[#ff8080]" />

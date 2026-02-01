@@ -91,3 +91,76 @@ class PsychometricSubmission(Base):
     answers = Column(JSON)
     score = Column(Integer)
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# --- JUDGE SYSTEM: PROBLEMS ---
+class Problem(Base):
+    """Server-side problem definition with hidden test cases"""
+    __tablename__ = "problems"
+    id = Column(Integer, primary_key=True)
+    problem_id = Column(String, unique=True, nullable=False, index=True)  # Unique slug like "two_sum"
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=False)
+    function_signature = Column(String, nullable=False)  # e.g., "def solution(nums, target):"
+    language = Column(String, default="python")
+    difficulty = Column(String, default="medium")  # easy, medium, hard
+    sample_tests = Column(JSON)  # Visible tests for "Run Code"
+    hidden_tests = Column(JSON)  # Hidden tests for judging (NEVER sent to frontend)
+    time_limit_sec = Column(Float, default=1.0)
+    memory_limit_mb = Column(Integer, default=256)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# --- JUDGE SYSTEM: EVALUATION SESSIONS ---
+class EvaluationSession(Base):
+    """Single source of truth for grading a submission"""
+    __tablename__ = "evaluation_sessions"
+    id = Column(Integer, primary_key=True, index=True)
+    evaluation_id = Column(String, unique=True, nullable=False)  # UUID or unique identifier
+    problem_id = Column(String, ForeignKey("problems.problem_id"), nullable=False)
+    candidate_id = Column(String, ForeignKey("candidates.id"), nullable=False)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=True)
+    
+    # Submission metadata
+    submitted_code = Column(Text, nullable=False)
+    language = Column(String, default="python")
+    
+    # Judge results (DETERMINISTIC)
+    total_hidden_tests = Column(Integer, default=0)
+    passed_hidden_tests = Column(Integer, default=0)
+    test_results = Column(JSON)  # Array of {ok: bool, time: float, error: str|null}
+    
+    # Scoring breakdown (70-15-10 formula)
+    correctness_points = Column(Float, default=0.0)  # 70 max
+    performance_points = Column(Float, default=0.0)  # 15 max
+    quality_points = Column(Float, default=0.0)      # 10 max
+    penalty_points = Column(Float, default=0.0)      # Subtractive
+    final_score = Column(Float, default=0.0)  # 0-100, clamped
+    
+    # Verdict and feedback
+    verdict = Column(String, default="PENDING")  # PENDING, ACCEPTED, PARTIAL_ACCEPTED, FAILED, RUNTIME_ERROR, TIMEOUT
+    max_execution_time = Column(Float, default=0.0)  # Highest single test time
+    
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+    evaluated_at = Column(DateTime(timezone=True), nullable=True)
+    
+    candidate = relationship("Candidate")
+    problem = relationship("Problem")
+
+
+# --- ANTI-CHEAT LOGS ---
+class AntiCheatLog(Base):
+    __tablename__ = "anti_cheat_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, index=True)  # Links to EvaluationSession.evaluation_id
+    evaluation_id = Column(String, ForeignKey("evaluation_sessions.evaluation_id"), nullable=True)
+    
+    # Violation type and details
+    violation_type = Column(String)  # CAMERA_VIOLATION, TAB_SWITCH, WINDOW_BLUR, COPY_ATTEMPT, PASTE_ATTEMPT, etc.
+    reason = Column(String, nullable=True)  # NO_FACE, TAB_HIDDEN, PERMISSION_DENIED, etc.
+    duration = Column(Integer, nullable=True)  # Duration in seconds (for tab/blur events)
+    context = Column(String, nullable=True)  # EDITOR, UNKNOWN, etc.
+    
+    # Timestamp of violation
+    violation_timestamp = Column(Integer)  # Unix timestamp in milliseconds
+    logged_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    evaluation = relationship("EvaluationSession")

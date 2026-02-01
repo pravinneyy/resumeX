@@ -11,7 +11,9 @@ from routes import auth, jobs, candidates, assessments, applications
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    # Create all tables if they don't exist
+    # Use checkfirst=True to avoid errors on existing tables
+    Base.metadata.create_all(bind=engine, checkfirst=True)
     # Removed local uploads folder creation since we use Supabase now
     yield
 
