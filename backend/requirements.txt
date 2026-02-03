@@ -3,7 +3,7 @@ uvicorn[standard]
 sqlalchemy
 psycopg2-binary
 pydantic
-python-multipar
+python-multipart
 pdfplumber
 python-docx
 requests
