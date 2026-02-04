@@ -71,6 +71,43 @@ def get_my_apps(
     return data
 
 
+@router.get("/candidates/{candidate_id}/profile")
+def get_candidate_profile(
+    candidate_id: str,
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user)
+):
+    """
+    Fetch existing candidate profile data (resume analysis results).
+    Returns saved skills, summary, and personal info if available.
+    """
+    # Security check
+    if current_user_id != candidate_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
+    
+    if not candidate or not candidate.skills:
+        return {
+            "has_resume": False,
+            "data": None
+        }
+    
+    return {
+        "has_resume": True,
+        "data": {
+            "summary": candidate.parsed_summary or "",
+            "skills": candidate.skills.split(",") if candidate.skills else [],
+            "personal": {
+                "name": candidate.name or "",
+                "email": candidate.email or "",
+                "phone": candidate.phone or ""
+            }
+        }
+    }
+
+
+
 @router.post("/candidates/{candidate_id}/resume")
 async def upload_and_analyze_resume(
     candidate_id: str,
@@ -197,22 +234,42 @@ def get_recommended_jobs(
         if not required_skills:
             continue
         
-        # Find matching skills
+        # Find matching skills with weighted scoring
         matching_skills = []
-        for candidate_skill in candidate_skills:
-            for required_skill in required_skills:
-                # Flexible matching (contains or is contained)
-                if (candidate_skill in required_skill or 
-                    required_skill in candidate_skill):
-                    matching_skills.append(candidate_skill.title())
+        match_score_raw = 0.0
+        
+        for required_skill in required_skills:
+            best_match = None
+            best_weight = 0.0
+            
+            for candidate_skill in candidate_skills:
+                # Exact match (case-insensitive)
+                if candidate_skill == required_skill:
+                    best_match = candidate_skill.title()
+                    best_weight = 1.0
                     break
+                
+                # Partial match (must be at least 3 chars to avoid false positives)
+                if len(candidate_skill) >= 3 and len(required_skill) >= 3:
+                    if candidate_skill in required_skill or required_skill in candidate_skill:
+                        # Longer overlap = better match
+                        overlap = min(len(candidate_skill), len(required_skill))
+                        weight = 0.3 + (overlap / max(len(candidate_skill), len(required_skill)) * 0.4)
+                        if weight > best_weight:
+                            best_match = candidate_skill.title()
+                            best_weight = weight
+            
+            if best_match:
+                matching_skills.append(best_match)
+                match_score_raw += best_weight
         
-        # Remove duplicates
-        matching_skills = list(set(matching_skills))
+        # Remove duplicates while preserving order
+        seen = set()
+        matching_skills = [x for x in matching_skills if not (x in seen or seen.add(x))]
         
-        # Calculate match score
+        # Calculate percentage match (weighted)
         if required_skills:
-            match_score = int((len(matching_skills) / len(required_skills)) * 100)
+            match_score = int((match_score_raw / len(required_skills)) * 100)
         else:
             match_score = 0
         

@@ -1,6 +1,6 @@
 "use client"
 
-import { useLayoutEffect } from "react"
+import { useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 
 // Component Imports
@@ -19,7 +19,7 @@ import { CursorGlow } from "@/components/cursor-glow"
 export default function Home() {
   const { isSignedIn, isLoaded } = useUser()
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
     }
@@ -33,7 +33,8 @@ export default function Home() {
         2. Enables 'scroll-snap-type' on html/body.
         3. Defines '.snap-section' behavior to stop scrolling exactly at that section.
       */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         html, body {
           /* Hide Scrollbar */
           scrollbar-width: none;
@@ -61,27 +62,27 @@ export default function Home() {
       `}} />
 
       <div className="fixed inset-0 z-0 pointer-events-none">
-          <BackgroundElements />
+        <BackgroundElements />
       </div>
       <CursorGlow />
 
       <div className="relative z-10">
         {/* Header */}
         <Header />
-        
+
         {/* Each section is wrapped in 'snap-section' so the scroll stops here */}
         <div className="snap-section"><HeroSection /></div>
         <div className="snap-section"><FeaturesSection /></div>
         <div className="snap-section"><MissionSection /></div>
-        
+
         {/* REMOVED: TestimonialsSection */}
 
         <div className="snap-section"><CTASection /></div>
-        
+
         {/* REMOVED: StatsSection */}
 
         <div className="snap-section"><ContactSection /></div>
-        
+
         {/* Note: Footer usually doesn't need to be full height, but snapping to it is fine */}
         <div className="snap-section"><Footer /></div>
       </div>
