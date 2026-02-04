@@ -117,34 +117,56 @@ def parse_enhanced_notes(notes: str) -> dict:
         "strengths": [], "gaps": [], "recommendation": "", "ai_reasoning": ""
     }
     
+    # Extract summary (everything before "EXPERIENCE:")
     lines = notes.split('\n')
     summary_lines = []
     for line in lines:
         if line.startswith('EXPERIENCE:'): break
-        if line.strip(): summary_lines.append(line.strip())
+        if line.strip() and not line.startswith('MATCH ANALYSIS:'):
+            summary_lines.append(line.strip())
     result["summary"] = ' '.join(summary_lines)
     
+    # Extract experience
     exp_match = re.search(r'EXPERIENCE:\s*(.+)', notes)
-    if exp_match: result["experience"] = exp_match.group(1).strip()
+    if exp_match: 
+        result["experience"] = exp_match.group(1).strip()
     
-    score_match = re.search(r'Match Score:\s*(\d+\.?\d*)%', notes)
-    if score_match: result["match_score"] = float(score_match.group(1))
+    # Extract match score (with bullet point)
+    score_match = re.search(r'[•●]\s*Match Score:\s*(\d+\.?\d*)%', notes)
+    if score_match: 
+        result["match_score"] = float(score_match.group(1))
     
-    verdict_match = re.search(r'Verdict:\s*(.+)', notes)
-    if verdict_match: result["verdict"] = verdict_match.group(1).strip()
+    # Extract verdict (with bullet point)
+    verdict_match = re.search(r'[•●]\s*Verdict:\s*(.+)', notes)
+    if verdict_match: 
+        result["verdict"] = verdict_match.group(1).strip()
     
-    strengths_match = re.search(r'Strengths:\s*(.+)', notes)
+    # Extract strengths (with bullet point)
+    strengths_match = re.search(r'[•●]\s*Strengths:\s*(.+)', notes)
     if strengths_match:
         s_str = strengths_match.group(1).strip()
-        if s_str and s_str != "None identified": result["strengths"] = [s.strip() for s in s_str.split(',')]
+        if s_str and s_str != "None identified" and s_str != "None": 
+            result["strengths"] = [s.strip() for s in s_str.split(',')]
     
-    gaps_match = re.search(r'Missing Skills:\s*(.+)', notes)
+    # Extract gaps/missing skills (with bullet point)
+    gaps_match = re.search(r'[•●]\s*Missing Skills:\s*(.+)', notes)
     if gaps_match:
         g_str = gaps_match.group(1).strip()
-        if g_str and g_str != "None": result["gaps"] = [g.strip() for g in g_str.split(',')]
+        if g_str and g_str != "None": 
+            result["gaps"] = [g.strip() for g in g_str.split(',')]
     
-    rec_match = re.search(r'RECOMMENDATION:\s*(.+?)(?:\n|$)', notes, re.DOTALL)
-    if rec_match: result["recommendation"] = rec_match.group(1).strip().split('\n')[0]
+    # Extract recommendation (everything after "RECOMMENDATION:")
+    # Use re.DOTALL to capture newlines (full multi-paragraph reasoning)
+    rec_match = re.search(r'RECOMMENDATION:\s*(.+)$', notes, re.DOTALL)
+    if rec_match: 
+        result["recommendation"] = rec_match.group(1).strip()
+    
+    # AI reasoning is now part of recommendation, but keep this just in case
+    # checking for explicit AI DECISION section if present separately
+    if "AI DECISION:" in notes and not "AI DECISION:" in result["recommendation"]:
+         reasoning_match = re.search(r'AI DECISION:.*?\n\n(.+)', notes, re.DOTALL)
+         if reasoning_match:
+            result["ai_reasoning"] = reasoning_match.group(1).strip()
     
     return result
 

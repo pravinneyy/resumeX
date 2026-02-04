@@ -6,8 +6,9 @@ import os
 from db import engine, Base
 import models 
 
-# FIX: Import 'applications'
-from routes import auth, jobs, candidates, assessments, applications
+# FIX: Import 'applications' and 'admin'
+from routes import auth, jobs, candidates, assessments, applications, admin
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,6 +37,7 @@ app.include_router(jobs.router, prefix="/api", tags=["Jobs"])
 app.include_router(candidates.router, prefix="/api", tags=["Candidates"])
 app.include_router(assessments.router, prefix="/api", tags=["Assessments"])
 app.include_router(applications.router, prefix="/api", tags=["Applications"])
+app.include_router(admin.router, prefix="/api", tags=["Admin"])
 
 @app.get("/")
 def home():
