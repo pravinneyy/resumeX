@@ -3,7 +3,7 @@
 import { useRef } from "react"
 import { useInView } from "@/hooks/use-in-view"
 import { cn } from "@/lib/utils"
-import { CheckCircle2, ArrowRight } from "lucide-react"
+import { CheckCircle2 } from "lucide-react"
 
 const flowSteps = [
   { label: "Resume Upload", color: "#e8a0a0" },
@@ -25,6 +25,8 @@ export function MissionSection() {
 
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
+          
+          {/* LEFT SIDE */}
           <div
             className={cn(
               "transition-all duration-700",
@@ -37,10 +39,8 @@ export function MissionSection() {
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 leading-tight hover:text-[#f0c0c0] transition-colors cursor-default">
               Recruitment reimagined through technology
             </h2>
-            <p className="text-[#b8a0a0] text-lg leading-relaxed mb-8 hover:text-[#d0b8b8] transition-colors cursor-default">
-              ResumeX eliminates bias and guesswork from hiring. We built a full-stack platform that makes assessment
-              transparent, evaluation explainable, and outcomes fair for everyone.
-            </p>
+            
+            {/* PARAGRAPH REMOVED HERE */}
 
             <div className="space-y-4">
               {[
@@ -64,7 +64,7 @@ export function MissionSection() {
             </div>
           </div>
 
-          {/* Data Flow Visualization */}
+          {/* RIGHT SIDE - Data Flow Visualization */}
           <div
             className={cn(
               "relative bg-[#2a1010]/80 border border-[#5a3030]/50 rounded-2xl p-8 transition-all duration-700 hover:border-[#e8a0a0]/30 hover:shadow-xl hover:shadow-[#e8a0a0]/10",
@@ -108,10 +108,9 @@ export function MissionSection() {
                         {step.label}
                       </span>
                     </div>
-                    <ArrowRight
-                      className="w-4 h-4 group-hover:translate-x-1 group-hover:scale-110 transition-all"
-                      style={{ color: step.color }}
-                    />
+                    
+                    {/* ARROW ICON REMOVED HERE */}
+
                   </div>
                 </div>
               ))}
