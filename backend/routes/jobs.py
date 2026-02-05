@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db import get_db
-from models import Job, Application, Recruiter
+from models import Job, Application, Recruiter, CandidateFinalScore
 from pydantic import BaseModel
 from typing import Optional
 import json
@@ -211,6 +211,26 @@ def get_job_applications(
         result = []
         for app in apps:
             analysis = parse_enhanced_notes(app.notes)
+            
+            # Fetch individual assessment scores from CandidateFinalScore
+            final_score_record = db.query(CandidateFinalScore).filter(
+                CandidateFinalScore.job_id == job_id,
+                CandidateFinalScore.candidate_id == app.candidate_id
+            ).first()
+            
+            # Extract normalized individual scores (all 0-100)
+            psychometric_score = None
+            technical_score = None
+            coding_score = None
+            behavioral_score = None
+            
+            if final_score_record:
+                # All scores are now normalized to 0-100
+                psychometric_score = final_score_record.psychometric_score
+                technical_score = final_score_record.technical_score
+                coding_score = final_score_record.coding_score
+                behavioral_score = final_score_record.behavioral_score
+            
             result.append({
                 "id": app.id,
                 "candidate_id": app.candidate_id,
@@ -228,6 +248,11 @@ def get_job_applications(
                 "ai_reasoning_full": app.notes,
                 "status": app.status,
                 "score": app.final_grade or 0,
+                # Individual assessment scores (all 0-100)
+                "psychometric_score": psychometric_score,
+                "technical_score": technical_score,
+                "coding_score": coding_score,
+                "behavioral_score": behavioral_score,
                 "resume_url": (
                     f"{SUPABASE_URL}/storage/v1/object/public/resumes/{app.candidate.resume_url}"
                     if app.candidate and app.candidate.resume_url and not app.candidate.resume_url.startswith("http")

@@ -7,7 +7,7 @@ from db import engine, Base
 import models 
 
 # FIX: Import 'applications' and 'admin'
-from routes import auth, jobs, candidates, assessments, applications, admin
+from routes import auth, jobs, candidates, assessments, applications, admin, candidate_analysis, weights, candidate_applications
 
 
 @asynccontextmanager
@@ -22,7 +22,12 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"], 
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,6 +43,9 @@ app.include_router(candidates.router, prefix="/api", tags=["Candidates"])
 app.include_router(assessments.router, prefix="/api", tags=["Assessments"])
 app.include_router(applications.router, prefix="/api", tags=["Applications"])
 app.include_router(admin.router, prefix="/api", tags=["Admin"])
+app.include_router(candidate_analysis.router, prefix="/api", tags=["AI Analysis"])
+app.include_router(weights.router, prefix="/api", tags=["Weights"])
+app.include_router(candidate_applications.router, prefix="/api", tags=["Candidate Applications"])
 
 @app.get("/")
 def home():

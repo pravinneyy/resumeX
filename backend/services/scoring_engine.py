@@ -2,10 +2,10 @@
 Deterministic Scoring Engine
 
 A fair, explainable scoring system for evaluating candidates across four components:
-1. Coding Assessment (0-40 points)
-2. Technical Text Questions (0-25 points, variable questions)
-3. Psychometric Test (0-25 points)
-4. Behavioral Slider Assessment (0-10 points)
+1. Coding Assessment (0-100 points)
+2. Technical Text Questions (0-100 points)
+3. Psychometric Test (0-100 points)
+4. Behavioral Slider Assessment (0-100 points)
 
 Core Principles:
 - Supabase is the only persistence layer
@@ -21,6 +21,7 @@ Author: Scoring Engine v1.0
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
+from services.ai_scorer import AIScorer
 from sqlalchemy.orm import Session
 import re
 
@@ -196,14 +197,14 @@ class HardGates:
 class CodingScorer:
     """
     Coding Assessment Scorer
-    Score: 0-40 points
+    Score: 0-100 points
     
     Formula:
     - correctness = passed_tests / total_tests
     - coding_normalized = 0.7 * correctness + 0.2 * performance_score + 0.1 * (1 - quality_penalty)
-    - coding_score = coding_normalized * 40
+    - coding_score = coding_normalized * 100
     """
-    MAX_SCORE = 40.0
+    MAX_SCORE = 100.0
     
     # Weight distribution
     CORRECTNESS_WEIGHT = 0.70
@@ -213,13 +214,29 @@ class CodingScorer:
     @classmethod
     def calculate(
         cls,
-        passed_tests: int,
-        total_tests: int,
+        final_score: float = None,  # Judge's final score (0-100)
+        passed_tests: int = 0,
+        total_tests: int = 0,
         performance_score: float = 1.0,  # 0-1 scale
         quality_penalty: float = 0.0     # 0-1 scale (0 = no penalty)
     ) -> ComponentScore:
-        """Calculate coding score (0-40)"""
+        """Calculate coding score (0-100), using judge's final_score if available"""
         
+        # If judge provided a final_score, use it directly
+        if final_score is not None:
+            return ComponentScore(
+                score=round(final_score, 2),
+                max_score=cls.MAX_SCORE,
+                status="evaluated",
+                details={
+                    "judge_score": final_score,
+                    "passed_tests": passed_tests,
+                    "total_tests": total_tests,
+                    "source": "judge"
+                }
+            )
+        
+        # Fallback: calculate from components if no judge score
         if total_tests == 0:
             return ComponentScore(
                 score=0.0,
@@ -254,6 +271,7 @@ class CodingScorer:
                 "correctness": round(correctness, 4),
                 "performance_score": round(performance_score, 4),
                 "quality_penalty": round(quality_penalty, 4),
+                "source": "calculated",
                 "breakdown": {
                     "correctness_contribution": round(cls.CORRECTNESS_WEIGHT * correctness * cls.MAX_SCORE, 2),
                     "performance_contribution": round(cls.PERFORMANCE_WEIGHT * performance_score * cls.MAX_SCORE, 2),
@@ -266,12 +284,12 @@ class CodingScorer:
 class TechnicalTextScorer:
     """
     Technical Text Questions Scorer
-    Score: 0-25 points (variable questions)
+    Score: 0-100 points (variable questions)
     
     Handles 0-4 questions with confidence factor.
-    Uses keyword matching for deterministic scoring.
+    Uses AI + Keyword Bonus for scoring.
     """
-    MAX_SCORE = 25.0
+    MAX_SCORE = 100.0
     EXPECTED_QUESTIONS = 4
     WEAK_FUNDAMENTALS_THRESHOLD = 4.0  # Average score below 4 = weak
     MIN_QUESTIONS_FOR_WEAK_FLAG = 2
@@ -279,35 +297,53 @@ class TechnicalTextScorer:
     @classmethod
     def score_single_question(
         cls,
+        question_text: str,
         answer_text: str,
         keywords: List[str]
     ) -> Tuple[float, List[str]]:
         """
-        Score a single question using keyword matching.
+        Score a single question using AI + Keyword Bonus.
         
         Returns: (score 0-10, list of matched keywords)
         """
-        if not keywords:
-            # No keywords defined = full credit
-            return 10.0, []
-        
         if not answer_text or not answer_text.strip():
             return 0.0, []
-        
+            
+        # 1. Calculate Keyword Bonus (Synchronous)
+        keywords = keywords or []
         answer_lower = answer_text.lower()
         matched = []
         
         for keyword in keywords:
-            # Case-insensitive word boundary matching
             pattern = r'\b' + re.escape(keyword.lower()) + r'\b'
             if re.search(pattern, answer_lower):
                 matched.append(keyword)
+                
+        keyword_ratio = len(matched) / max(1, len(keywords)) if keywords else 0
+        keyword_bonus = keyword_ratio * 3.0
         
-        # Calculate score: (matched / total) * 10, capped at 10
-        score = (len(matched) / len(keywords)) * 10.0
-        score = min(10.0, score)
-        
-        return round(score, 2), matched
+        # 2. AI Evaluation (Synchronous call - AI service handles it)
+        try:
+            ai_result = AIScorer.evaluate_answer(question_text, answer_text, keywords)
+            
+            base_score = ai_result["quality_score"]  # 0-7
+            
+            # Combine
+            total_score = base_score + keyword_bonus
+            
+            # Penalize stuffing
+            if ai_result["stuffing_flag"]:
+                total_score = min(total_score, 3.0)
+                
+            final_score = min(10.0, total_score)
+            
+            return round(final_score, 2), matched
+            
+        except Exception as e:
+            print(f"AI Scoring Error: {e}, falling back to keywords")
+            # Fallback to strict keyword matching * 10 if AI fails
+            fallback_score = keyword_ratio * 10
+            return round(fallback_score, 2), matched
     
     @classmethod
     def calculate(
@@ -315,7 +351,7 @@ class TechnicalTextScorer:
         question_scores: List[float]  # Each score is 0-10
     ) -> ComponentScore:
         """
-        Calculate technical text score (0-25).
+        Calculate technical text score (0-100).
         
         Case A - N = 0: Mark as NOT_EVALUATED
         Case B - N ≥ 1: Apply confidence factor
@@ -367,21 +403,21 @@ class TechnicalTextScorer:
 class PsychometricScorer:
     """
     Psychometric Test Scorer
-    Score: 0-25 points
+    Score: 0-100 points
     
     Sections: numerical, verbal, abstract
-    Balance penalty: -5 if any section < 40%
+    Balance penalty: -20 if any section < 40%
     """
-    MAX_SCORE = 25.0
+    MAX_SCORE = 100.0
     BALANCE_THRESHOLD = 0.40  # 40%
-    BALANCE_PENALTY = 5.0
+    BALANCE_PENALTY = 20.0
     
     @classmethod
     def calculate(
         cls,
         sections: Dict[str, Dict[str, int]]  # {section_name: {correct: x, total: y}}
     ) -> ComponentScore:
-        """Calculate psychometric score (0-25)"""
+        """Calculate psychometric score (0-100)"""
         
         if not sections:
             return ComponentScore(
@@ -430,7 +466,7 @@ class PsychometricScorer:
             psychometric_score -= cls.BALANCE_PENALTY
             applied_penalty = cls.BALANCE_PENALTY
         
-        # Clamp between 0-25
+        # Clamp between 0-100
         psychometric_score = max(0.0, min(cls.MAX_SCORE, psychometric_score))
         
         return ComponentScore(
@@ -451,13 +487,13 @@ class PsychometricScorer:
 class BehavioralScorer:
     """
     Behavioral Slider Assessment Scorer
-    Score: 0-10 points
+    Score: 0-100 points
     
     Sliders are 1-5 scale, normalized to 0-1.
     Category weights: Teamwork 30%, Ownership 30%, Communication 25%, Risk 15%
     Anti-gaming: all sliders ≥4.8 or ≤1.2 triggers penalty
     """
-    MAX_SCORE = 10.0
+    MAX_SCORE = 100.0
     
     # Category weights
     CATEGORY_WEIGHTS = {
@@ -470,7 +506,7 @@ class BehavioralScorer:
     # Anti-gaming thresholds
     GAMING_HIGH_THRESHOLD = 4.8
     GAMING_LOW_THRESHOLD = 1.2
-    GAMING_PENALTY = 2.0
+    GAMING_PENALTY = 20.0
     
     @classmethod
     def normalize_slider(cls, value: float) -> float:
@@ -828,6 +864,7 @@ class ScoringEngine:
         coding_data = None
         if coding_eval:
             coding_data = {
+                "final_score": coding_eval.final_score,  # Use judge's calculated score directly
                 "passed_tests": coding_eval.passed_hidden_tests,
                 "total_tests": coding_eval.total_hidden_tests,
                 "performance_score": coding_eval.performance_points / 15.0 if coding_eval.performance_points else 1.0,
@@ -884,13 +921,14 @@ class ScoringEngine:
         flags = {}
         evaluated_components = set()
         
-        # Coding score
+        # Coding score - use judge's final_score directly
         if coding_data:
             coding_score = CodingScorer.calculate(
-                coding_data["passed_tests"],
-                coding_data["total_tests"],
-                coding_data["performance_score"],
-                coding_data["quality_penalty"]
+                final_score=coding_data.get("final_score", 0),
+                passed_tests=coding_data["passed_tests"],
+                total_tests=coding_data["total_tests"],
+                performance_score=coding_data["performance_score"],
+                quality_penalty=coding_data["quality_penalty"]
             )
             component_scores["coding"] = coding_score
             if coding_score.status == "evaluated":
@@ -1131,15 +1169,14 @@ class ScoringEngine:
 
 
 # ============================================================
-# TECHNICAL TEXT GRADER (Keyword-based)
+# TECHNICAL TEXT GRADER (AI + Keyword Hybrid)
 # ============================================================
 
 class TechnicalTextGrader:
     """
-    Grade technical text answers using keyword matching.
+    Grade technical text answers using AI + Keyword Hybrid.
     
-    This is deterministic and does not use AI.
-    Design is open for optional AI refinement later.
+    Uses AIScorer for evaluation with keyword bonus.
     """
     
     @classmethod
@@ -1181,7 +1218,10 @@ class TechnicalTextGrader:
                 continue
             
             keywords = q.keywords or []
+            
+            # Use AI + Keyword scoring
             score, matched = TechnicalTextScorer.score_single_question(
+                q.question,
                 answer_text,
                 keywords
             )

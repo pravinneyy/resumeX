@@ -23,7 +23,9 @@ import {
   ArrowUpDown,
   Copy,
   User,
-  Loader2
+  Loader2,
+  Briefcase,
+  Filter
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -47,6 +49,8 @@ export interface Employee {
   salary: string
   status: "Hired" | "Not Hired" | "Pending"
   score: number
+  jobTitle?: string  // The job they applied for
+  jobId?: number     // Job ID for filtering
 }
 
 export default function RecruitmentPage() {
@@ -55,6 +59,7 @@ export default function RecruitmentPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   const [filter, setFilter] = useState<"All" | "Hired" | "Not Hired">("All")
+  const [jobFilter, setJobFilter] = useState<string>("All")  // New job filter
   const [searchQuery, setSearchQuery] = useState("")
   const [sortConfig, setSortConfig] = useState<{ key: "score" | "startDate"; direction: "asc" | "desc" }>({
     key: "score",
@@ -91,7 +96,9 @@ export default function RecruitmentPage() {
           startDate: candidate.appliedDate ? new Date(candidate.appliedDate).toLocaleDateString() : new Date().toLocaleDateString(),
           salary: "Competitive", // Defaulting as backend doesn't send it
           status: ["Hired", "Offer Accepted"].includes(candidate.status) ? "Hired" : (["Rejected", "Declined"].includes(candidate.status) ? "Not Hired" : "Pending"),
-          score: candidate.score || 0
+          score: candidate.score || 0,
+          jobTitle: candidate.job_title || "Unknown Position",
+          jobId: candidate.job_id
         }))
 
         setEmployees(mappedData)
@@ -109,6 +116,12 @@ export default function RecruitmentPage() {
   const hiredCount = employees.filter((e) => e.status === "Hired").length
   const notHiredCount = employees.filter((e) => e.status === "Not Hired").length
 
+  // Get unique job titles for filter dropdown
+  const uniqueJobs = useMemo(() => {
+    const jobs = new Set(employees.map(e => e.jobTitle).filter(Boolean))
+    return Array.from(jobs)
+  }, [employees])
+
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text)
     toast.success(`${label} copied to clipboard`)
@@ -122,13 +135,19 @@ export default function RecruitmentPage() {
       result = result.filter((e) => e.status === filter)
     }
 
+    // Apply job filter
+    if (jobFilter !== "All") {
+      result = result.filter((e) => e.jobTitle === jobFilter)
+    }
+
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase()
       result = result.filter(
         (e) =>
           e.name.toLowerCase().includes(lowerQuery) ||
           e.role.toLowerCase().includes(lowerQuery) ||
-          e.department.toLowerCase().includes(lowerQuery)
+          e.department.toLowerCase().includes(lowerQuery) ||
+          (e.jobTitle && e.jobTitle.toLowerCase().includes(lowerQuery))
       )
     }
 
@@ -203,12 +222,35 @@ export default function RecruitmentPage() {
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or role..."
+                placeholder="Search by name, role, or job..."
                 className="pl-9 h-9 bg-secondary/50 border-transparent focus-visible:bg-background transition-colors"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+
+            {/* Job Filter Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-9 gap-2", jobFilter !== "All" && "border-primary text-primary")}>
+                  <Briefcase className="w-3 h-3" />
+                  {jobFilter === "All" ? "All Jobs" : jobFilter.slice(0, 15) + (jobFilter.length > 15 ? "..." : "")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="max-h-60 overflow-y-auto">
+                <DropdownMenuLabel>Filter by Job</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setJobFilter("All")}>
+                  All Jobs ({employees.length})
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {uniqueJobs.map((job) => (
+                  <DropdownMenuItem key={job} onClick={() => setJobFilter(job || "")}>
+                    {job} ({employees.filter(e => e.jobTitle === job).length})
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -306,7 +348,13 @@ export default function RecruitmentPage() {
                             </div>
 
                           </div>
-                          <p className="text-sm text-muted-foreground font-medium truncate mb-3">{employee.role}</p>
+                          <p className="text-sm text-muted-foreground font-medium truncate">{employee.role}</p>
+                          {employee.jobTitle && (
+                            <div className="flex items-center gap-1.5 mt-1 mb-2">
+                              <Briefcase className="w-3 h-3 text-primary" />
+                              <span className="text-xs text-primary font-medium truncate">{employee.jobTitle}</span>
+                            </div>
+                          )}
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs text-muted-foreground/80">
                             <div className="flex items-center gap-2" title="Department">
@@ -339,17 +387,20 @@ export default function RecruitmentPage() {
                         </div>
 
                         <div className="flex flex-col items-end gap-3 z-20">
-                          <div className="text-right bg-background/50 p-2 rounded-lg border border-border/50">
-                            <div
-                              className={cn(
-                                "text-xl font-bold leading-none",
-                                employee.status === "Hired" ? "text-success" : (employee.status === "Not Hired" ? "text-muted-foreground" : "text-yellow-500"),
-                              )}
-                            >
-                              {employee.score}
-                            </div>
-                            <div className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold mt-1">AI Score</div>
-                          </div>
+                          <Badge
+                            variant={
+                              employee.status === "Hired" || employee.status === "Interview" ? "default" :
+                                employee.status === "Rejected" || employee.status === "Not Hired" ? "destructive" :
+                                  "secondary"
+                            }
+                            className={cn(
+                              "text-sm px-3 py-1",
+                              employee.status === "Hired" && "bg-green-600",
+                              employee.status === "Interview" && "bg-blue-600"
+                            )}
+                          >
+                            {employee.status}
+                          </Badge>
 
                           <div className="flex items-center gap-1">
                             <Button

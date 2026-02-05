@@ -70,10 +70,10 @@ class JobAssessment(Base):
     technical_question_ids = Column(JSON, default=[])  # Technical text question IDs
     
     # Recruiter-configurable scoring weights (must sum to 1.0 after normalization)
-    coding_weight = Column(Float, default=0.40)       # 40% default, min 30%
-    technical_weight = Column(Float, default=0.25)    # 25% default
-    psychometric_weight = Column(Float, default=0.25) # 25% default, min 15%
-    behavioral_weight = Column(Float, default=0.10)   # 10% default, max 15%
+    coding_weight = Column(Float, default=0.40)       # 40% default
+    technical_weight = Column(Float, default=0.30)    # 30% default
+    psychometric_weight = Column(Float, default=0.20) # 20% default
+    behavioral_weight = Column(Float, default=0.10)   # 10% default
     
     job = relationship("Job", back_populates="assessment")
 

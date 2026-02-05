@@ -17,8 +17,6 @@ const navItems = [
 
   // CHANGED: Label updated to "Recruiter Dashboard"
   { label: "Dashboard", icon: LayoutDashboard, href: "/recruiter" },
-
-  { label: "Candidates", icon: Users, href: "/recruiter/candidates" },
   { label: "Analytics", icon: BarChart3, href: "/recruiter/analytics" },
   { label: "Recruitment Board", icon: Kanban, href: "/recruiter/recruitment" },
   { label: "Security Logs", icon: ShieldAlert, href: "/recruiter/logs" },

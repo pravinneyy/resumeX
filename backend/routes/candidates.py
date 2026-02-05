@@ -11,6 +11,56 @@ router = APIRouter()
 @router.get("/candidates")
 def get_all_candidates(
     db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user)
+):
+    """
+    Fetch all candidates, BUT only for jobs owned by the logged-in Recruiter.
+    Masks the score if the candidate hasn't completed the assessment yet.
+    """
+    results = db.query(Application, Candidate, Job)\
+        .join(Candidate, Application.candidate_id == Candidate.id)\
+        .join(Job, Application.job_id == Job.id)\
+        .filter(Job.recruiter_id == current_user_id) \
+        .all()
+    
+    if not results: return []
+
+    # Define statuses that indicate the Assessment is officially done
+    # Adjust these strings to match exactly what you store in your DB
+    COMPLETED_STATUSES = {
+        "Evaluated", 
+        "Interview", 
+        "Strong Hire", 
+        "Hire", 
+        "Rejected", 
+        "Borderline Review",
+        "Offer"
+    }
+
+    data = []
+    for app, cand, job in results:
+        # LOGIC FIX: Only show score if the status proves they took the assessment
+        # Otherwise, show 0 (hides the AI resume parsing score)
+        display_score = app.final_grade if app.status in COMPLETED_STATUSES else 0
+
+        data.append({
+            "id": cand.id,
+            "application_id": app.id,
+            "job_id": job.id, 
+            "name": cand.name,
+            "email": cand.email,
+            "phone": cand.phone or "N/A",
+            "position": job.title,
+            "status": app.status,
+            "appliedDate": app.applied_at.isoformat() if app.applied_at else "",
+            "skills": (cand.skills or "").split(','),
+            "score": display_score, # <--- Updated to use conditional logic
+            "ai_reasoning": app.notes 
+        })
+    return data
+
+def get_all_candidates(
+    db: Session = Depends(get_db),
     current_user_id: str = Depends(get_current_user) # <--- SECURE TOKEN
 ):
     """

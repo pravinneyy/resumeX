@@ -11,6 +11,8 @@ import {
     Briefcase, Clock, Code, CheckCircle2, ArrowRight,
     Sparkles, Target, Zap
 } from "lucide-react"
+import { useRealtimeApplications } from "@/hooks/useRealtimeApplications"
+import { useRealtimeJobs } from "@/hooks/useRealtimeJobs"
 
 export default function CandidateDashboard() {
     const { user, isLoaded } = useUser()
@@ -18,7 +20,12 @@ export default function CandidateDashboard() {
     const router = useRouter()
     const [stats, setStats] = useState({ applied: 0, assessments: 0, offers: 0 })
     const [activeTask, setActiveTask] = useState<any>(null)
-    const [recommendedJobs, setRecommendedJobs] = useState<any[]>([])
+    const [initialRecommendedJobs, setInitialRecommendedJobs] = useState<any[]>([])
+    const [initialApplications, setInitialApplications] = useState<any[]>([])
+
+    // Realtime hooks
+    const recommendedJobs = useRealtimeJobs(initialRecommendedJobs)
+    const applications = useRealtimeApplications(initialApplications, { candidateId: user?.id })
 
     // Fetch dashboard data
     useEffect(() => {
@@ -38,6 +45,7 @@ export default function CandidateDashboard() {
                 const data = await res.json()
 
                 if (Array.isArray(data)) {
+                    setInitialApplications(data) // Set for realtime hook
                     const assessmentCount = data.filter((a: any) => a.status === 'Assessment').length
                     setStats({
                         applied: data.length,
@@ -62,7 +70,7 @@ export default function CandidateDashboard() {
                 })
                 const jobsData = await jobsRes.json()
                 if (jobsData.recommended_jobs) {
-                    setRecommendedJobs(jobsData.recommended_jobs.slice(0, 3)) // Top 3 for dashboard
+                    setInitialRecommendedJobs(jobsData.recommended_jobs.slice(0, 3)) // Top 3 for dashboard
                 }
             } catch (error) {
                 console.error("Failed to load recommended jobs:", error)
@@ -71,6 +79,20 @@ export default function CandidateDashboard() {
 
         fetchDashboardData()
     }, [user, isLoaded, getToken])
+
+    // Update stats when applications change
+    useEffect(() => {
+        if (applications.length > 0) {
+            const assessmentCount = applications.filter((a: any) => a.status === 'Assessment').length
+            setStats({
+                applied: applications.length,
+                assessments: assessmentCount,
+                offers: 0
+            })
+            const task = applications.find((a: any) => a.status === 'Assessment')
+            if (task) setActiveTask(task)
+        }
+    }, [applications])
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 animate-fade-in pb-20">

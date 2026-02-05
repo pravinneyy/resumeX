@@ -7,9 +7,10 @@ import Editor from "@monaco-editor/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Play, Send, Clock, Loader2, AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, XCircle, ShieldAlert, Camera, CameraOff, Users } from "lucide-react"
-import { useAntiCheat } from "@/hooks/use-anti-cheat"
+import { Play, Send, Clock, Loader2, AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, CheckCircle, XCircle, ShieldAlert, Camera, CameraOff, Users, Maximize } from "lucide-react"
+import { useEnhancedAntiCheat } from "@/hooks/useEnhancedAntiCheat"
 import { useToast } from "@/hooks/use-toast"
+import { useExam } from "@/contexts/ExamContext"
 
 export default function CodingAssessment() {
   const params = useParams()
@@ -22,6 +23,7 @@ export default function CodingAssessment() {
   const [loading, setLoading] = useState(true)
   const [assessment, setAssessment] = useState<any>(null)
   const [problemIds, setProblemIds] = useState<{ [key: number]: string }>({})
+  const [testCasesByQuestion, setTestCasesByQuestion] = useState<{ [key: number]: any[] }>({})
 
   // Navigation State
   const [currentQIndex, setCurrentQIndex] = useState(0)
@@ -43,7 +45,59 @@ export default function CodingAssessment() {
   const [sessionId] = useState(() => `session_${Date.now()}`)
   const [cameraLoading, setCameraLoading] = useState(true)
   const [cameraError, setCameraError] = useState<string | null>(null)
-  const antiCheat = useAntiCheat(sessionId, true, user?.id, jobId ? parseInt(jobId as string) : undefined)
+  const antiCheat = useEnhancedAntiCheat({
+    sessionId,
+    enabled: true,
+    candidateId: user?.id,
+    jobId: jobId ? parseInt(jobId as string) : undefined,
+    maxViolations: 5,
+    faceDetectionTimeoutMs: 10000,
+    onViolation: (violation, count) => {
+      console.log(`[IDE] Violation #${count}:`, violation.type)
+      if (count >= 5) {
+        toast({
+          title: "⚠️ Too Many Violations",
+          description: "You have been flagged for malpractice. Assessment will be auto-submitted.",
+          variant: "destructive",
+        })
+      }
+    },
+    onPause: (reason) => {
+      toast({
+        title: "⚠️ Assessment Paused",
+        description: reason,
+        variant: "destructive",
+      })
+    },
+    onAutoFail: () => {
+      toast({
+        title: "🚨 Auto-Fail Triggered",
+        description: "Too many violations detected. Your submission has been flagged.",
+        variant: "destructive",
+      })
+    },
+  })
+
+  // Exam lockdown mode
+  const { startExam, endExam, isExamActive, enterFullscreen, isFullscreen } = useExam()
+
+  // Activate lockdown mode when assessment loads
+  useEffect(() => {
+    if (!loading && assessment && !isExamActive && jobId) {
+      startExam(parseInt(jobId as string), "coding", timeLeft)
+      console.log("[IDE] Exam lockdown mode activated")
+    }
+  }, [loading, assessment, isExamActive, jobId, timeLeft, startExam])
+
+  // End exam on unmount
+  useEffect(() => {
+    return () => {
+      if (isExamActive) {
+        endExam("completed")
+      }
+    }
+  }, [isExamActive, endExam])
+
 
   useEffect(() => {
     const fetchAssessment = async () => {
@@ -71,6 +125,7 @@ export default function CodingAssessment() {
         if (cleanQuestions.length > 0) {
           const problemIdMap: { [key: number]: string } = {};
           const codeMap: { [key: number]: string } = {};
+          const testCasesMap: { [key: number]: any[] } = {};
 
           // Process each question and fetch problem details from DB
           for (let idx = 0; idx < cleanQuestions.length; idx++) {
@@ -101,6 +156,8 @@ export default function CodingAssessment() {
                 const problemData = await problemRes.json();
                 // Use the starter_code from DB which has correct function signature
                 codeMap[idx] = problemData.starter_code || q.starter_code || `# Write your Python solution for: ${q.title}\n\ndef solution():\n    pass`;
+                // Store test cases for this question (API returns sample_tests)
+                testCasesMap[idx] = problemData.sample_tests || [];
                 console.log(`[IDE] Loaded starter code for ${extractedProblemId}:`, problemData.function_signature);
               } else {
                 // Fallback if problem not found in DB
@@ -114,7 +171,9 @@ export default function CodingAssessment() {
 
           setProblemIds(problemIdMap);
           setCodeByQuestion(codeMap);
+          setTestCasesByQuestion(testCasesMap);
           console.log("Extracted problem IDs:", problemIdMap);
+          console.log("Loaded test cases:", testCasesMap);
 
           // Set code for first question
           setCode(codeMap[0]);
@@ -448,7 +507,7 @@ export default function CodingAssessment() {
         setOutput(output_text);
         setJudgeResults(result);
         setShowResults(true);
-        alert(`❌ Compilation Error!\n\n${result.error}\n\nPlease fix the syntax error and try again.`);
+        // Removed alert - modal shows the error
         return;
       }
 
@@ -465,7 +524,7 @@ export default function CodingAssessment() {
       setShowResults(true);
 
       // Send anti-cheat logs on completion
-      await antiCheat.sendLogsOnCompletion();
+
 
       // Construct output for display
       const summary = `
@@ -500,13 +559,11 @@ VERDICT: ${result.verdict}
       `.trim();
 
       setOutput(summary);
-
-      // Lock editor
-      alert(`✅ Submission evaluated!\n\nFinal Score: ${result.final_score}/100\nVerdict: ${result.verdict}\n\nEvaluation ID: ${result.evaluation_id}`);
+      // Removed alert - modal shows the results
 
     } catch (error) {
       setOutput(`❌ Evaluation error: ${error}`);
-      alert(`Error during evaluation: ${error}`);
+      // Removed alert - error shown in output
     } finally {
       setSubmitting(false);
     }
@@ -599,6 +656,129 @@ VERDICT: ${result.verdict}
     }
   }
 
+  // --- 5. NEW: Submit ALL Questions at Once with Weighted Scoring ---
+  const handleSubmitAll = async () => {
+    if (!user || !assessment?.questions?.length) {
+      alert("Error: Missing user or questions");
+      return;
+    }
+
+    // Confirm with user
+    const confirmed = window.confirm(
+      `📝 Submit All ${assessment.questions.length} Questions?\n\n` +
+      `This will evaluate all your code submissions at once.\n` +
+      `Each question is worth ${(100 / assessment.questions.length).toFixed(1)}% of your final score.\n\n` +
+      `Make sure you have completed all questions before submitting.`
+    );
+
+    if (!confirmed) return;
+
+    setSubmitting(true);
+    setOutput("🔧 Preparing all submissions...");
+
+    try {
+      const token = await getToken();
+
+      // Save current code before submitting
+      const finalCodeByQuestion = { ...codeByQuestion, [currentQIndex]: code };
+
+      // Build submissions array for all questions
+      const submissions = Object.entries(problemIds).map(([idx, problemId]) => ({
+        problem_id: problemId,
+        code: finalCodeByQuestion[parseInt(idx)] || "",
+        language: "python"
+      }));
+
+      console.log("[IDE] Submitting all questions:", submissions);
+
+      setOutput(`🔧 Submitting ${submissions.length} questions...\n⏳ Evaluating code...`);
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/assessments/${jobId}/evaluate-all`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            candidate_id: user.id,
+            job_id: parseInt(jobId as string),
+            submissions
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server error: ${response.statusText} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log("[IDE] All questions evaluated:", result);
+
+      // Store evaluation ID
+      setEvaluationId(result.evaluation_id);
+      sessionStorage.setItem(`eval_all_${jobId}_${user?.id}`, result.evaluation_id);
+
+      // Send anti-cheat logs on completion
+
+
+      // Build summary output
+      let summary = `
+═══════════════════════════════════════
+      ALL QUESTIONS EVALUATED
+═══════════════════════════════════════
+
+📊 OVERALL RESULT:
+   Total Score: ${result.total_score}/100
+   Verdict: ${result.verdict}
+   Questions: ${result.num_questions}
+
+═══════════════════════════════════════
+   INDIVIDUAL SCORES
+═══════════════════════════════════════
+`;
+
+      result.question_results.forEach((qr: any, idx: number) => {
+        const icon = qr.verdict === "ACCEPTED" ? "✅" :
+          qr.verdict === "PARTIAL_ACCEPTED" ? "⚡" : "❌";
+        summary += `
+Question ${idx + 1} (${qr.problem_id}):
+  ${icon} Score: ${qr.score}/100
+  Verdict: ${qr.verdict}
+  Tests: ${qr.passed_tests || 0}/${qr.total_tests || 0}
+`;
+        if (qr.error) {
+          summary += `  Error: ${qr.error}\n`;
+        }
+      });
+
+      summary += `
+═══════════════════════════════════════
+WEIGHTED AVERAGE: ${result.total_score}/100
+═══════════════════════════════════════
+
+✅ All evaluations are now stored in the database.
+   You can safely navigate away.
+`;
+
+      setOutput(summary.trim());
+      setJudgeResults(result);
+      setShowResults(true);
+
+      // Removed alert - modal shows all results
+
+    } catch (error) {
+      console.error("[IDE] Submit all error:", error);
+      setOutput(`❌ Submission error: ${error}`);
+      // Removed alert - error shown in output
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+
   // Show loading or camera error screen
   if (loading || cameraLoading) {
     return (
@@ -689,6 +869,13 @@ VERDICT: ${result.verdict}
               )}
             </>
           )}
+
+          {/* Gaze Detection Badge */}
+          {antiCheat.faceDetectionActive && antiCheat.currentFaceCount === 1 && !antiCheat.isLookingAtScreen && (
+            <Badge variant="destructive" className="gap-1 animate-pulse">
+              <AlertTriangle className="w-3 h-3" /> Looking Away!
+            </Badge>
+          )}
         </div>
         <div className="flex gap-2">
           <Button
@@ -704,6 +891,13 @@ VERDICT: ${result.verdict}
             )}
           </Button>
 
+          {/* Fullscreen Mode */}
+          {!isFullscreen && (
+            <Button variant="outline" size="sm" onClick={enterFullscreen} title="Enter Fullscreen Mode">
+              <Maximize className="w-4 h-4 mr-2" /> Fullscreen
+            </Button>
+          )}
+
           {/* Run Code - Just execute and show output */}
           <Button variant="secondary" size="sm" onClick={handleRunCode} disabled={running}>
             {running ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Play className="w-4 h-4 mr-2" /> Run Code</>}
@@ -715,7 +909,12 @@ VERDICT: ${result.verdict}
           </Button>
 
           <Button size="sm" onClick={handleFinishTechnical} disabled={submitting} className="bg-green-600 hover:bg-green-700">
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4 mr-2" /> Submit</>}
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4 mr-2" /> Submit Q{currentQIndex + 1}</>}
+          </Button>
+
+          {/* Submit All Questions - Multi-question weighted scoring */}
+          <Button size="sm" onClick={handleSubmitAll} disabled={submitting} className="bg-purple-600 hover:bg-purple-700">
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4 mr-2" /> Submit All ({Object.keys(problemIds).length})</>}
           </Button>
         </div>
       </header>
@@ -737,63 +936,73 @@ VERDICT: ${result.verdict}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
                   <p className="text-sm text-muted-foreground">Final Score</p>
-                  <p className="text-4xl font-bold text-blue-600">{judgeResults.final_score}</p>
+                  <p className="text-4xl font-bold text-blue-600">
+                    {judgeResults.total_score || judgeResults.final_score || 0}
+                  </p>
                   <p className="text-xs text-muted-foreground">/100</p>
                 </div>
                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Tests Passed</p>
-                  <p className="text-4xl font-bold text-purple-600">{judgeResults.passed_hidden_tests}</p>
-                  <p className="text-xs text-muted-foreground">/{judgeResults.total_hidden_tests}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {judgeResults.num_questions ? 'Questions' : 'Tests Passed'}
+                  </p>
+                  <p className="text-4xl font-bold text-purple-600">
+                    {judgeResults.num_questions || judgeResults.passed_hidden_tests || 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {judgeResults.num_questions ? 'submitted' : `/${judgeResults.total_hidden_tests || 0}`}
+                  </p>
                 </div>
               </div>
 
-              {/* Score Breakdown */}
-              <div className="space-y-3">
-                <h3 className="font-semibold">Score Breakdown</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Correctness (Tests Passed)</span>
-                    <span className="font-semibold">{judgeResults.correctness_points.toFixed(1)}/70</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: `${(judgeResults.correctness_points / 70) * 100}%` }}
-                    ></div>
-                  </div>
+              {/* Score Breakdown - Only for single question results */}
+              {!judgeResults.num_questions && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold">Score Breakdown</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Correctness (Tests Passed)</span>
+                      <span className="font-semibold">{(judgeResults?.correctness_points || 0).toFixed(1)}/70</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{ width: `${((judgeResults?.correctness_points || 0) / 70) * 100}%` }}
+                      ></div>
+                    </div>
 
-                  <div className="flex justify-between items-center mt-4">
-                    <span className="text-sm">Performance (Execution Speed)</span>
-                    <span className="font-semibold">{judgeResults.performance_points.toFixed(1)}/15</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full"
-                      style={{ width: `${(judgeResults.performance_points / 15) * 100}%` }}
-                    ></div>
-                  </div>
+                    <div className="flex justify-between items-center mt-4">
+                      <span className="text-sm">Performance (Execution Speed)</span>
+                      <span className="font-semibold">{(judgeResults?.performance_points || 0).toFixed(1)}/15</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-500 h-2 rounded-full"
+                        style={{ width: `${((judgeResults?.performance_points || 0) / 15) * 100}%` }}
+                      ></div>
+                    </div>
 
-                  <div className="flex justify-between items-center mt-4">
-                    <span className="text-sm">Code Quality (No Errors)</span>
-                    <span className="font-semibold">{judgeResults.quality_points.toFixed(1)}/10</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-orange-500 h-2 rounded-full"
-                      style={{ width: `${(judgeResults.quality_points / 10) * 100}%` }}
-                    ></div>
-                  </div>
+                    <div className="flex justify-between items-center mt-4">
+                      <span className="text-sm">Code Quality (No Errors)</span>
+                      <span className="font-semibold">{(judgeResults?.quality_points || 0).toFixed(1)}/10</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-orange-500 h-2 rounded-full"
+                        style={{ width: `${((judgeResults?.quality_points || 0) / 10) * 100}%` }}
+                      ></div>
+                    </div>
 
-                  {judgeResults.penalty_points > 0 && (
-                    <>
-                      <div className="flex justify-between items-center mt-4">
-                        <span className="text-sm text-red-600">Penalties (Anti-Cheat)</span>
-                        <span className="font-semibold text-red-600">-{judgeResults.penalty_points.toFixed(1)}</span>
-                      </div>
-                    </>
-                  )}
+                    {(judgeResults?.penalty_points || 0) > 0 && (
+                      <>
+                        <div className="flex justify-between items-center mt-4">
+                          <span className="text-sm text-red-600">Penalties (Anti-Cheat)</span>
+                          <span className="font-semibold text-red-600">-{(judgeResults?.penalty_points || 0).toFixed(1)}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Execution Time */}
               <div className="bg-gray-50 dark:bg-gray-900/20 p-3 rounded">
@@ -842,8 +1051,50 @@ VERDICT: ${result.verdict}
             <div className="prose dark:prose-invert text-sm mb-8"><p className="whitespace-pre-wrap">{question.problem_text}</p></div>
 
             <div className="space-y-4">
-              <Card className="bg-muted/50"><CardHeader className="py-3"><CardTitle className="text-sm">Example Input</CardTitle></CardHeader><CardContent className="py-3 font-mono text-xs">{question.test_input || question.input || "N/A"}</CardContent></Card>
-              <Card className="bg-muted/50"><CardHeader className="py-3"><CardTitle className="text-sm">Expected Output</CardTitle></CardHeader><CardContent className="py-3 font-mono text-xs">{question.test_output || question.output || "N/A"}</CardContent></Card>
+              {/* Test Cases from Supabase problems table */}
+              {testCasesByQuestion[currentQIndex] && testCasesByQuestion[currentQIndex].length > 0 ? (
+                <>
+                  <Card className="bg-muted/50">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">Example Input</CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-3 font-mono text-xs">
+                      <pre className="whitespace-pre-wrap">
+                        {JSON.stringify(testCasesByQuestion[currentQIndex][0]?.input, null, 2)}
+                      </pre>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-muted/50">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">Expected Output</CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-3 font-mono text-xs">
+                      <pre className="whitespace-pre-wrap">
+                        {JSON.stringify(testCasesByQuestion[currentQIndex][0]?.expected_output, null, 2)}
+                      </pre>
+                    </CardContent>
+                  </Card>
+                </>
+              ) : (
+                <>
+                  <Card className="bg-muted/50">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">Example Input</CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-3 font-mono text-xs">
+                      {question.test_input || question.input || "N/A"}
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-muted/50">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">Expected Output</CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-3 font-mono text-xs">
+                      {question.test_output || question.output || "N/A"}
+                    </CardContent>
+                  </Card>
+                </>
+              )}
             </div>
           </div>
 
@@ -861,12 +1112,28 @@ VERDICT: ${result.verdict}
         {/* RIGHT PANEL: EDITOR */}
         <div className="flex-1 flex flex-col">
           <div className="flex-1">
-            <Editor height="100%" defaultLanguage="python" theme="vs-dark" value={code} onChange={(val) => setCode(val || "")} options={{ minimap: { enabled: false }, fontSize: 14 }} />
+            <Editor
+              height="100%"
+              defaultLanguage="python"
+              theme="vs-dark"
+              value={code}
+              onChange={(val) => setCode(val || "")}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 14,
+                quickSuggestions: false, // Disable suggestions for better performance
+                suggestOnTriggerCharacters: false,
+                wordBasedSuggestions: "off"
+              }}
+            />
           </div>
-          <div className="h-64 border-t bg-black text-white p-4 font-mono text-sm overflow-y-auto">
-            <p className="text-muted-foreground mb-2">// Console / Test Output</p>
-            <pre className="whitespace-pre-wrap">{output}</pre>
-          </div>
+          {/* Console - hide when results modal is open */}
+          {!showResults && (
+            <div className="h-64 border-t bg-black text-white p-4 font-mono text-sm overflow-y-auto">
+              <p className="text-muted-foreground mb-2">// Console / Test Output</p>
+              <pre className="whitespace-pre-wrap">{output}</pre>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -459,19 +459,130 @@ class AIGatekeeper:
         match_score: int,
         decision: str
     ) -> str:
-        """Generate conversational reasoning for the decision."""
+        """Generate AI-powered recommendation with independent thinking."""
+        
+        if not HF_TOKEN:
+            # Fallback to deterministic if no AI available
+            return AIGatekeeper._generate_deterministic_reasoning(
+                name, job_title, matching_skills, missing_skills, 
+                required_skills, experience_years, minimum_experience, 
+                match_score, decision
+            )
+        
+        try:
+            candidate_name = name if name != "Unknown" else "This candidate"
+            
+            # Build comprehensive context for AI
+            prompt = f"""
+You are a strict Technical Recruiter and Hiring Manager. Your job is to filter candidates for the role of **{job_title}**. 
+Your goal is to reject irrelevant candidates immediately to save the engineering team time.
+
+### JOB DETAILS
+**Title:** {job_title}
+**Experience Required:** {minimum_experience} years
+**Description & Requirements:** {job_description}
+
+### CANDIDATE RESUME
+{resume_text}
+
+### INSTRUCTION
+Evaluate the candidate strictly based on the evidence in the resume. Do not assume they know a skill if it is not mentioned. 
+
+**Decision Logic:**
+1. **Tech Stack Mismatch (Hard Fail):** If the job requires a specific core language/framework (e.g., .NET, Python, React) and the candidate has NO mention of it or equivalent experience, the decision is **NO**.
+2. **Seniority Mismatch:** If the job is "Senior" or "Lead" and the candidate has less than 3 years of total experience, the decision is **NO**.
+3. **Domain Mismatch:** If the candidate's experience is in a completely different field (e.g., Data Entry applying for Software Engineering), the decision is **NO**.
+
+**Output Format:**
+You must return a valid JSON object. Do not add markdown formatting.
+{{
+    "decision": "YES" | "NO",
+    "rationale": "One sharp sentence explaining why. If NO, mention exactly which requirement was missed.",
+    "match_score": <integer_0_to_100>,
+    "missing_skills": ["List", "of", "critical", "missing", "skills"]
+}}
+"""
+
+            api_url = "https://router.huggingface.co/v1/chat/completions"
+            response = requests.post(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {HF_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "meta-llama/Llama-3.2-3B-Instruct",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 300,
+                    "temperature": 0.7  # Higher temperature for more nuanced thinking
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                ai_recommendation = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                
+                if ai_recommendation and len(ai_recommendation) > 20:
+                    # Clean up the response
+                    reasoning = ai_recommendation.strip()
+                    
+                    # Ensure it starts with YES/NO/MAYBE
+                    if not any(reasoning.upper().startswith(verdict) for verdict in ['**YES**', '**NO**', '**MAYBE**', 'YES', 'NO', 'MAYBE']):
+                        # If AI didn't follow format, prepend based on calculated decision
+                        reasoning = f"**{decision}** - {reasoning}"
+                    elif reasoning.upper().startswith(('YES', 'NO', 'MAYBE')):
+                        # Add bold formatting if missing
+                        for verdict in ['YES', 'NO', 'MAYBE']:
+                            if reasoning.upper().startswith(verdict):
+                                reasoning = f"**{verdict}** - {reasoning[len(verdict):].lstrip(' -:')}"
+                                break
+                    
+                    print(f"[AI RECOMMENDATION] {reasoning[:100]}...")
+                    return reasoning
+                else:
+                    print("[WARN] AI response too short, using fallback")
+            else:
+                print(f"[WARN] AI API returned {response.status_code}, using fallback")
+                
+        except Exception as e:
+            print(f"[WARN] AI recommendation failed: {e}, using fallback")
+        
+        # Fallback to deterministic if AI fails
+        return AIGatekeeper._generate_deterministic_reasoning(
+            name, job_title, matching_skills, missing_skills,
+            required_skills, experience_years, minimum_experience,
+            match_score, decision
+        )
+    
+    @staticmethod
+    def _generate_deterministic_reasoning(
+        name: str,
+        job_title: str,
+        matching_skills: List[str],
+        missing_skills: List[str],
+        required_skills: List[str],
+        experience_years: int,
+        minimum_experience: int,
+        match_score: int,
+        decision: str
+    ) -> str:
+        """Fallback deterministic reasoning when AI is unavailable."""
         
         candidate_name = name if name != "Unknown" else "This candidate"
         skill_count = len(matching_skills)
         total_skills = len(required_skills)
         
         if decision == "YES":
+            # Start with clear YES verdict
+            reasoning = "**YES** - "
+            
             # Enthusiastic recommendation
             if skill_count == total_skills:
-                reasoning = f"I'd definitely recommend {candidate_name} for the {job_title} role! "
+                reasoning += f"I'd definitely recommend {candidate_name} for the {job_title} role! "
                 reasoning += f"They have all {total_skills} required skills we're looking for"
             else:
-                reasoning = f"I think {candidate_name} would be a great fit for the {job_title} position. "
+                reasoning += f"I think {candidate_name} would be a great fit for the {job_title} position. "
                 reasoning += f"They've got {skill_count} out of {total_skills} key skills"
             
             if matching_skills:
@@ -489,8 +600,11 @@ class AIGatekeeper:
             reasoning += "I'd say let's move forward with an interview!"
         
         elif decision == "MAYBE":
+            # Start with clear MAYBE verdict
+            reasoning = "**MAYBE** - "
+            
             # Cautiously optimistic
-            reasoning = f"{candidate_name} has potential for the {job_title} role, but there are some gaps to consider. "
+            reasoning += f"{candidate_name} has potential for the {job_title} role, but there are some gaps to consider. "
             
             if skill_count > 0:
                 reasoning += f"On the plus side, they have experience with {', '.join(matching_skills[:3])}. "
@@ -507,8 +621,11 @@ class AIGatekeeper:
             reasoning += "I'd suggest considering them if you're open to some training, or if you have other candidates to compare against."
         
         else:
+            # Start with clear NO verdict
+            reasoning = "**NO** - "
+            
             # Honest rejection
-            reasoning = f"Unfortunately, I don't think {candidate_name} is the right fit for the {job_title} position at this time. "
+            reasoning += f"Unfortunately, I don't think {candidate_name} is the right fit for the {job_title} position at this time. "
             
             if skill_count == 0:
                 reasoning += f"They don't seem to have any of the {total_skills} required skills we're looking for"
@@ -541,15 +658,13 @@ class AIGatekeeper:
             return ""
         
         try:
-            prompt = f"""Write a 2-sentence professional summary of this candidate for a {job_title} role.
-Focus on their strengths and fit for the role.
+            prompt = f"""Write a 2-sentence professional summary of this candidate based ONLY on their resume.
+Summarize their background, experience, and key skills. Do NOT evaluate their fit for any job.
 
 Resume excerpt:
 {resume_text[:1500]}
 
-Required skills: {required_skills}
-
-Write ONLY the 2-sentence summary, nothing else:"""
+Write ONLY the 2-sentence summary about the candidate, nothing else:"""
             
             api_url = "https://router.huggingface.co/v1/chat/completions"
             response = requests.post(

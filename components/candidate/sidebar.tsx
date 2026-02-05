@@ -15,8 +15,8 @@ interface SidebarProps {
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/candidate" },
   { label: "Jobs", icon: Briefcase, href: "/candidate/jobs" },
+  { label: "Applications", icon: FileText, href: "/candidate/applications" }, // Application status
   { label: "Interviews", icon: Code2, href: "/candidate/interviews" }, // Was Compare/Practice
-  { label: "My Resume", icon: FileText, href: "/candidate/resume" },    // New Page
 ]
 
 export function CandidateSidebar({ collapsed, onToggle }: SidebarProps) {
@@ -31,10 +31,10 @@ export function CandidateSidebar({ collapsed, onToggle }: SidebarProps) {
         )}
       >
         <Link href="/?source=dashboard" className="block hover:opacity-80 transition-opacity">
-            <div className="flex items-center justify-center gap-2 p-4 border-b border-border h-16 flex-shrink-0">
+          <div className="flex items-center justify-center gap-2 p-4 border-b border-border h-16 flex-shrink-0">
             <Sparkles className="w-5 h-5 text-primary flex-shrink-0" />
             {!collapsed && <span className="font-bold text-xl text-primary animate-fade-in">ResumeX</span>}
-            </div>
+          </div>
         </Link>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -57,11 +57,11 @@ export function CandidateSidebar({ collapsed, onToggle }: SidebarProps) {
             )
           })}
         </nav>
-        
+
         <div className="p-3 border-t border-border flex-shrink-0">
-             <Button variant="ghost" size="sm" onClick={onToggle} className="w-full">
-                <ChevronLeft className={cn("w-4 h-4 transition-transform", collapsed && "rotate-180")} />
-             </Button>
+          <Button variant="ghost" size="sm" onClick={onToggle} className="w-full">
+            <ChevronLeft className={cn("w-4 h-4 transition-transform", collapsed && "rotate-180")} />
+          </Button>
         </div>
       </aside>
     </TooltipProvider>
