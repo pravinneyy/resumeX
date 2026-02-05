@@ -194,13 +194,13 @@ export default function JobDetailsPage() {
                         <div className="flex items-center gap-4 flex-1">
                           <Avatar className="h-12 w-12">
                             <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                              {app.name.substring(0, 2).toUpperCase()}
+                              {(app.name || 'UN').substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold group-hover:text-primary transition-colors">
-                                {app.name}
+                                {app.name || 'Unknown Candidate'}
                               </h3>
                               {app.match_score > 0 && (
                                 <Badge
@@ -214,7 +214,7 @@ export default function JobDetailsPage() {
                             </div>
                             <p className="text-sm text-muted-foreground mb-1">{app.email}</p>
                             <p className="text-xs text-muted-foreground line-clamp-1">
-                              {app.ai_summary.substring(0, 100)}...
+                              {(app.ai_summary || 'Pending analysis').substring(0, 100)}...
                             </p>
                           </div>
                         </div>
@@ -339,12 +339,12 @@ export default function JobDetailsPage() {
                   <div className="flex items-start gap-4">
                     <Avatar className="h-16 w-16 border-2 border-muted shadow-md">
                       <AvatarFallback className="text-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold">
-                        {selectedApp.name.replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase() || '??'}
+                        {(selectedApp.name || 'UN').replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase() || '??'}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <SheetTitle className="text-xl mb-1 truncate">
-                        {selectedApp.name.replace(/[^a-zA-Z0-9\s.'-]/g, '').trim() || 'Unknown'}
+                        {(selectedApp.name || 'Unknown').replace(/[^a-zA-Z0-9\s.'-]/g, '').trim() || 'Unknown'}
                       </SheetTitle>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                         <Mail className="w-4 h-4 shrink-0" />
