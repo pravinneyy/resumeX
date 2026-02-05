@@ -1,0 +1,139 @@
+{
+  "section": "Behavioral Sliders",
+  "description": "Slider-based behavioral assessment measuring work style, collaboration, ownership, communication, and risk tolerance.",
+  "scale": {
+    "min": 1,
+    "max": 5,
+    "labels": {
+      "1": "Strongly Disagree",
+      "3": "Neutral",
+      "5": "Strongly Agree"
+    }
+  },
+  "categories": [
+    {
+      "category": "Teamwork",
+      "focus": "Collaboration vs Independence",
+      "questions": [
+        {
+          "id": "TW1",
+          "statement": "I produce my best work when I can brainstorm ideas with a group rather than thinking alone.",
+          "left_trait": "Solitary",
+          "right_trait": "Collaborative"
+        },
+        {
+          "id": "TW2",
+          "statement": "I am willing to compromise on my own ideas to reach a consensus with the team.",
+          "left_trait": "Stubborn",
+          "right_trait": "Agreeable"
+        },
+        {
+          "id": "TW3",
+          "statement": "I feel comfortable relying on teammates to complete critical parts of a project.",
+          "left_trait": "Micromanagement",
+          "right_trait": "Trust and Delegation"
+        },
+        {
+          "id": "TW4",
+          "statement": "I am more motivated when my individual contributions are clearly recognized, even while working as part of a team.",
+          "left_trait": "Team-Oriented",
+          "right_trait": "Individual Recognition"
+        }
+      ]
+    },
+    {
+      "category": "Ownership",
+      "focus": "Accountability and Initiative",
+      "questions": [
+        {
+          "id": "OW1",
+          "statement": "I frequently look for tasks that go beyond my formal job responsibilities.",
+          "left_trait": "Role-Bound",
+          "right_trait": "Proactive"
+        },
+        {
+          "id": "OW2",
+          "statement": "When a project fails, I examine my own actions before considering external factors.",
+          "left_trait": "External Attribution",
+          "right_trait": "Internal Accountability"
+        },
+        {
+          "id": "OW3",
+          "statement": "When a task is ambiguous, I prefer to clarify direction before taking independent action.",
+          "left_trait": "Impulsive Action",
+          "right_trait": "Deliberate Clarification"
+        },
+        {
+          "id": "OW4",
+          "statement": "I feel personally responsible for the overall success of the company, not just my specific role.",
+          "left_trait": "Narrow Ownership",
+          "right_trait": "Big Picture Ownership"
+        }
+      ]
+    },
+    {
+      "category": "Communication",
+      "focus": "Conflict Resolution and Clarity",
+      "questions": [
+        {
+          "id": "CM1",
+          "statement": "I prefer to address conflicts directly and early, even if it feels uncomfortable.",
+          "left_trait": "Conflict Avoidance",
+          "right_trait": "Direct Resolution"
+        },
+        {
+          "id": "CM2",
+          "statement": "I adjust my explanation style depending on whether I am speaking to technical or non-technical stakeholders.",
+          "left_trait": "Rigid Communication",
+          "right_trait": "Adaptive Communication"
+        },
+        {
+          "id": "CM3",
+          "statement": "I believe it is better to over-communicate progress and risks than to wait until work is finished.",
+          "left_trait": "Minimal Updates",
+          "right_trait": "High Transparency"
+        },
+        {
+          "id": "CM4",
+          "statement": "I prefer written communication for important decisions because it creates a clear record.",
+          "left_trait": "Verbal Processing",
+          "right_trait": "Documentation-Oriented"
+        }
+      ]
+    },
+    {
+      "category": "Risk Tolerance",
+      "focus": "Innovation vs Stability",
+      "questions": [
+        {
+          "id": "RT1",
+          "statement": "I am comfortable making significant decisions with incomplete data, as long as the risks are understood.",
+          "left_trait": "Risk-Averse",
+          "right_trait": "Decisive Under Uncertainty"
+        },
+        {
+          "id": "RT2",
+          "statement": "I prefer using established, proven solutions rather than experimenting with new or untested approaches.",
+          "left_trait": "Innovative",
+          "right_trait": "Conservative"
+        },
+        {
+          "id": "RT3",
+          "statement": "It is better to release an imperfect product quickly (MVP), even if it requires fixes after release.",
+          "left_trait": "Perfection-Oriented",
+          "right_trait": "Agility-Focused"
+        },
+        {
+          "id": "RT4",
+          "statement": "I perform well in environments where priorities change frequently and unexpectedly.",
+          "left_trait": "Stability-Seeking",
+          "right_trait": "Adaptable to Change"
+        }
+      ]
+    }
+  ],
+  "scoring_notes": {
+    "anti_gaming_rule": "If all sliders are set to minimum or maximum values, flag behavioral_reliability as low.",
+    "usage": "Behavioral sliders influence hiring decisions but are not pass/fail."
+  }
+}

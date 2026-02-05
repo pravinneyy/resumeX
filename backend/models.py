@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, JSON, Boolean, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, JSON, Boolean, Text, BigInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from db import Base
@@ -65,7 +65,15 @@ class JobAssessment(Base):
     job_id = Column(Integer, ForeignKey("jobs.id"))
     title = Column(String)
     duration_minutes = Column(Integer, default=60)
-    questions = Column(JSON)
+    questions = Column(JSON)  # Coding questions
+    psychometric_ids = Column(JSON, default=[])  # Psychometric question IDs (MCQ/slider)
+    technical_question_ids = Column(JSON, default=[])  # Technical text question IDs
+    
+    # Recruiter-configurable scoring weights (must sum to 1.0 after normalization)
+    coding_weight = Column(Float, default=0.40)       # 40% default, min 30%
+    technical_weight = Column(Float, default=0.25)    # 25% default
+    psychometric_weight = Column(Float, default=0.25) # 25% default, min 15%
+    behavioral_weight = Column(Float, default=0.10)   # 10% default, max 15%
     
     job = relationship("Job", back_populates="assessment")
 
@@ -91,6 +99,72 @@ class PsychometricSubmission(Base):
     answers = Column(JSON)
     score = Column(Integer)
     submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# --- PSYCHOMETRIC QUESTIONS ---
+class PsychometricQuestion(Base):
+    __tablename__ = "psychometric_questions"
+    id = Column(Integer, primary_key=True, index=True)
+    section = Column(String)
+    question = Column(String)
+    context = Column(Text, nullable=True)
+    options = Column(String)
+    answer = Column(String)
+    explanation = Column(Text)
+
+# --- TECHNICAL TEXT QUESTIONS ---
+class TechnicalQuestion(Base):
+    """
+    Text-based technical interview questions.
+    Types: conceptual, situational, behavioral
+    
+    Keywords are used for AI/automated grading - 
+    checking if candidate's response mentions key concepts.
+    """
+    __tablename__ = "technical_questions"
+    id = Column(Integer, primary_key=True, index=True)
+    section = Column(String, nullable=False)  # "Conceptual Questions", "Situational Questions", "Behavioral Questions"
+    question_type = Column(String, default="text")  # "text", "mcq" (for future)
+    question = Column(Text, nullable=False)
+    keywords = Column(JSON, default=[])  # List of expected keywords for grading
+    difficulty = Column(String, default="medium")  # easy, medium, hard
+    time_limit_sec = Column(Integer, default=300)  # 5 minutes per question
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+# --- TEMPORARY: TECHNICAL TEXT PROGRESS ---
+class TechnicalTextProgress(Base):
+    """
+    Temporary storage for in-progress technical text answers.
+    Similar to PsychometricProgress - prevents data loss on page refresh.
+    """
+    __tablename__ = "technical_text_progress"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, nullable=False)
+    candidate_id = Column(String, nullable=False)
+    answers = Column(JSON, nullable=False, default={})  # {question_id: answer_text}
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+# --- TEMPORARY: PSYCHOMETRIC PROGRESS (for refresh persistence) ---
+class PsychometricProgress(Base):
+    """
+    Temporary table to store in-progress psychometric test answers.
+    This prevents data loss when candidates refresh the page during the test.
+    Data is deleted after final submission and scoring.
+    
+    NOTE: No foreign key constraints since this stores Clerk user IDs 
+    which may not have corresponding entries in the candidates table yet.
+    """
+    __tablename__ = "psychometric_progress"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, nullable=False)  # No FK - just store the ID
+    candidate_id = Column(String, nullable=False)  # Clerk user ID - no FK
+    
+    # Store answers as JSON (same format as final submission)
+    answers = Column(JSON, nullable=False, default={})
+    
+    # Track when progress was last updated
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 # --- JUDGE SYSTEM: PROBLEMS ---
 class Problem(Base):
@@ -160,7 +234,77 @@ class AntiCheatLog(Base):
     context = Column(String, nullable=True)  # EDITOR, UNKNOWN, etc.
     
     # Timestamp of violation
-    violation_timestamp = Column(Integer)  # Unix timestamp in milliseconds
+    violation_timestamp = Column(BigInteger)  # Unix timestamp in milliseconds
     logged_at = Column(DateTime(timezone=True), server_default=func.now())
     
     evaluation = relationship("EvaluationSession")
+
+
+# --- TECHNICAL TEXT SUBMISSIONS ---
+class TechnicalTextSubmission(Base):
+    """
+    Stores graded technical text question submissions.
+    
+    Each answer is scored using keyword matching:
+    score = (matched_keywords / total_keywords) * 10, capped at 10
+    """
+    __tablename__ = "technical_text_submissions"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    candidate_id = Column(String, ForeignKey("candidates.id"), nullable=False)
+    
+    # Per-question breakdown: {question_id: {answer, score, keywords_matched, total_keywords}}
+    answers = Column(JSON, nullable=False, default={})
+    
+    # Aggregated score (average of all question scores, 0-10 scale)
+    total_score = Column(Float, default=0.0)
+    question_count = Column(Integer, default=0)
+    
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    job = relationship("Job")
+    candidate = relationship("Candidate")
+
+
+# --- CANDIDATE FINAL SCORES (Single Source of Truth) ---
+class CandidateFinalScore(Base):
+    """
+    Unified scoring result for a candidate on a job.
+    
+    This is the SINGLE SOURCE OF TRUTH for all candidate scores.
+    Contains full breakdown for auditability and explainability.
+    """
+    __tablename__ = "candidate_final_scores"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    candidate_id = Column(String, ForeignKey("candidates.id"), nullable=False)
+    
+    # Component scores (raw, before weighting)
+    coding_score = Column(Float, nullable=True)          # 0-40, null if not evaluated
+    technical_score = Column(Float, nullable=True)       # 0-25, null if not evaluated
+    psychometric_score = Column(Float, nullable=True)    # 0-25, null if not evaluated
+    behavioral_score = Column(Float, nullable=True)      # 0-10, null if not evaluated
+    
+    # Weights used after normalization (sum to 1.0)
+    coding_weight_used = Column(Float, nullable=True)
+    technical_weight_used = Column(Float, nullable=True)
+    psychometric_weight_used = Column(Float, nullable=True)
+    behavioral_weight_used = Column(Float, nullable=True)
+    
+    # Final result
+    final_score = Column(Float, default=0.0)             # 0-100
+    decision = Column(String, default="PENDING")         # STRONG_HIRE, HIRE, BORDERLINE_REVIEW, NO_HIRE
+    
+    # Flags for risk assessment
+    flags = Column(JSON, default={})  # {weak_fundamentals, behavioral_reliability, hard_gate_failed, etc.}
+    
+    # Full audit trail
+    component_breakdown = Column(JSON, default={})       # Complete breakdown for transparency
+    hard_gate_result = Column(JSON, nullable=True)       # If hard gate failed, details here
+    
+    # Timestamps
+    calculated_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    job = relationship("Job")
+    candidate = relationship("Candidate")
