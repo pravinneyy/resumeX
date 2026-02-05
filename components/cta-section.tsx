@@ -5,6 +5,7 @@ import { useInView } from "@/hooks/use-in-view"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Sparkles, CheckCircle2, Zap, Shield, Users } from "lucide-react"
+import Link from "next/link"
 
 const benefits = [
   { icon: Zap, text: "Start in under 5 minutes" },
@@ -47,7 +48,7 @@ export function CTASection() {
                 </span>
               </div>
 
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 text-balance leading-tight hover:text-[#f0e8e8] transition-colors cursor-default">
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-8 text-balance leading-tight hover:text-[#f0e8e8] transition-colors cursor-default">
                 Transform your{" "}
                 <span className="text-[#e8a0a0] relative inline-block hover:text-[#f0c0c0] transition-colors cursor-default group">
                   hiring process
@@ -64,10 +65,7 @@ export function CTASection() {
                 today
               </h2>
 
-              <p className="text-[#b8a0a0] text-lg mb-8 text-pretty leading-relaxed hover:text-[#d0b8b8] transition-colors cursor-default">
-                Join hundreds of forward-thinking teams already using CYGNUSA Elite-Hire to find better matches, reduce
-                bias, and build diverse teams.
-              </p>
+              {/* PARAGRAPH REMOVED HERE */}
 
               <div className="space-y-3 mb-8">
                 {benefits.map((benefit, index) => (
@@ -88,20 +86,24 @@ export function CTASection() {
               </div>
 
               <div className="flex flex-col sm:flex-row items-start gap-4">
-                <Button
-                  size="lg"
-                  className="bg-[#e8a0a0] hover:bg-[#f0c0c0] text-[#2a1010] px-8 py-6 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[#e8a0a0]/40 group font-semibold"
-                >
-                  Get started free
-                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="border-[#5a3030] text-white bg-transparent hover:bg-[#e8a0a0] hover:text-[#2a1010] hover:border-[#e8a0a0] px-8 py-6 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#e8a0a0]/30"
-                >
-                  Schedule a demo
-                </Button>
+                <Link href="/signup">
+                    <Button
+                    size="lg"
+                    className="bg-[#e8a0a0] hover:bg-[#f0c0c0] text-[#2a1010] px-8 py-6 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[#e8a0a0]/40 group font-semibold"
+                    >
+                    Get started free
+                    <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                </Link>
+                <Link href="/demo">
+                    <Button
+                    size="lg"
+                    variant="outline"
+                    className="border-[#5a3030] text-white bg-transparent hover:bg-[#e8a0a0] hover:text-[#2a1010] hover:border-[#e8a0a0] px-8 py-6 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-[#e8a0a0]/30"
+                    >
+                    Schedule a demo
+                    </Button>
+                </Link>
               </div>
             </div>
 
