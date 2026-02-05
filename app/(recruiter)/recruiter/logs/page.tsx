@@ -21,7 +21,9 @@ interface GlobalViolation {
     timestamp: number
     logged_at: string
     candidate_name: string
+    candidate_id?: string
     job_title: string
+    job_id?: number
     session_id: string
 }
 
@@ -205,8 +207,12 @@ export default function LogsPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <p className="font-medium">{v.candidate_name}</p>
-                                                    <p className="text-xs text-muted-foreground">{v.job_title}</p>
+                                                    <p className="font-medium">
+                                                        {v.candidate_name !== "Unknown" ? v.candidate_name : (v.candidate_id ? `ID: ${v.candidate_id.substring(0, 12)}...` : "Unknown")}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {v.job_title !== "Unknown Job" ? v.job_title : (v.job_id ? `Job #${v.job_id}` : "Unknown Job")}
+                                                    </p>
                                                 </td>
                                                 <td className="px-6 py-4 text-muted-foreground">
                                                     <div className="flex items-center gap-1.5">

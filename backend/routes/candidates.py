@@ -197,22 +197,28 @@ def get_recommended_jobs(
         if not required_skills:
             continue
         
-        # Find matching skills
-        matching_skills = []
-        for candidate_skill in candidate_skills:
-            for required_skill in required_skills:
+        # Find matching skills - count how many REQUIRED skills are covered by candidate
+        matched_requirements = set()  # Track which required skills are satisfied
+        matching_skills = []  # For display: which candidate skills matched
+        
+        for required_skill in required_skills:
+            for candidate_skill in candidate_skills:
                 # Flexible matching (contains or is contained)
                 if (candidate_skill in required_skill or 
-                    required_skill in candidate_skill):
+                    required_skill in candidate_skill or
+                    AIGatekeeper._are_skills_equivalent(candidate_skill, required_skill)):
+                    matched_requirements.add(required_skill)
                     matching_skills.append(candidate_skill.title())
-                    break
+                    break  # Move to next required skill once matched
         
-        # Remove duplicates
+        # Remove duplicates from display list
         matching_skills = list(set(matching_skills))
         
-        # Calculate match score
+        # Calculate match score based on requirements covered
+        # score = (covered requirements / total requirements) * 100, capped at 100
         if required_skills:
-            match_score = int((len(matching_skills) / len(required_skills)) * 100)
+            match_score = int((len(matched_requirements) / len(required_skills)) * 100)
+            match_score = min(match_score, 100)  # Cap at 100%
         else:
             match_score = 0
         

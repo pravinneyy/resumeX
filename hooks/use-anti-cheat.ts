@@ -8,10 +8,11 @@ export interface ViolationLog {
   timestamp: number
 }
 
-export function useAntiCheat(sessionId: string, enabled: boolean = true) {
+export function useAntiCheat(sessionId: string, enabled: boolean = true, candidateId?: string, jobId?: number) {
   const [violations, setViolations] = useState<ViolationLog[]>([])
   const [cameraActive, setCameraActive] = useState(false)
   const [faceDetectionActive, setFaceDetectionActive] = useState(false)
+  const [currentFaceCount, setCurrentFaceCount] = useState<number>(0)
   const violationsRef = useRef<ViolationLog[]>([])
   const tabHiddenTimeRef = useRef<number | null>(null)
   const windowBlurTimeRef = useRef<number | null>(null)
@@ -20,6 +21,7 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
   const faceDetectionIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const videoElementRef = useRef<HTMLVideoElement | null>(null)
   const noFaceCountRef = useRef<number>(0)
+  const multipleFacesCountRef = useRef<number>(0)
   const faceApiLoadedRef = useRef<boolean>(false)
 
   // ===== LOGGING FUNCTION (defined early for use in other functions) =====
@@ -45,7 +47,7 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
 
       setFaceDetectionActive(true)
 
-      // Start face detection loop
+      // Start face detection loop - runs every 5 seconds
       faceDetectionIntervalRef.current = setInterval(async () => {
         if (!videoElement || videoElement.paused || videoElement.ended) {
           return
@@ -59,35 +61,32 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
 
           const faceCount = detections.length
 
-          if (faceCount === 0) {
-            noFaceCountRef.current += 1
-            console.log(`[AntiCheat] No face detected (count: ${noFaceCountRef.current})`)
+          // Update state with current face count for UI display
+          setCurrentFaceCount(faceCount)
 
-            // Log violation after 3 consecutive no-face detections (~9 seconds)
-            if (noFaceCountRef.current >= 3) {
-              logViolation({
-                type: "NO_FACE",
-                reason: "No face detected for extended period",
-                timestamp: Date.now(),
-              })
-              noFaceCountRef.current = 0 // Reset counter after logging
-            }
+          // Log violations immediately every 5 seconds when detected
+          if (faceCount === 0) {
+            console.log(`[AntiCheat] No face detected - logging violation`)
+            logViolation({
+              type: "NO_FACE",
+              reason: "No face detected",
+              timestamp: Date.now(),
+            })
           } else if (faceCount > 1) {
-            console.warn(`[AntiCheat] Multiple faces detected: ${faceCount}`)
+            console.warn(`[AntiCheat] Multiple faces detected: ${faceCount} - logging violation`)
             logViolation({
               type: "MULTIPLE_FACES",
               reason: `${faceCount} faces detected`,
               timestamp: Date.now(),
             })
-            noFaceCountRef.current = 0
           } else {
-            // Exactly 1 face - reset counter
-            noFaceCountRef.current = 0
+            // Exactly 1 face - all good
+            console.log(`[AntiCheat] 1 face detected - OK`)
           }
         } catch (detectionError) {
           console.warn("[AntiCheat] Face detection error:", detectionError)
         }
-      }, 3000) // Check every 3 seconds
+      }, 5000) // Check every 5 seconds - violations logged immediately
 
       console.log("[AntiCheat] Face detection started")
     } catch (error) {
@@ -400,6 +399,8 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           session_id: sessionId,
+          candidate_id: candidateId,
+          job_id: jobId,
           violations: logs,
         }),
       })
@@ -409,7 +410,7 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
         violationsRef.current = violationsRef.current.filter(
           (v) => !logs.includes(v)
         )
-        console.log("[AntiCheat] Sent", logs.length, "violations to backend")
+        console.log("[AntiCheat] Sent", logs.length, "violations to backend for candidate:", candidateId, "job:", jobId)
       } else {
         console.warn("[AntiCheat] Backend returned non-OK status:", response.status)
       }
@@ -447,5 +448,6 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
     violationCount: violations.length,
     cameraActive,
     faceDetectionActive,
+    currentFaceCount,
   }
 }
