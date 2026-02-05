@@ -1,7 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, Users, Kanban, ChevronLeft, BarChart3, Sparkles } from "lucide-react"
+import { LayoutDashboard, Users, Kanban, ChevronLeft, BarChart3, Sparkles, ShieldAlert } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -14,13 +14,14 @@ interface SidebarProps {
 
 const navItems = [
   // REMOVED: "Recruit" item (consolidated into Dashboard)
-  
+
   // CHANGED: Label updated to "Recruiter Dashboard"
   { label: "Dashboard", icon: LayoutDashboard, href: "/recruiter" },
-  
+
   { label: "Candidates", icon: Users, href: "/recruiter/candidates" },
   { label: "Analytics", icon: BarChart3, href: "/recruiter/analytics" },
   { label: "Recruitment Board", icon: Kanban, href: "/recruiter/recruitment" },
+  { label: "Security Logs", icon: ShieldAlert, href: "/recruiter/logs" },
 ]
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
@@ -48,7 +49,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             // Updated active check to handle sub-routes (e.g., keeping dashboard active when in job details)
             // If you want strict matching only, use: pathname === item.href
             const isActive = pathname === item.href || (item.href !== "/recruiter" && pathname.startsWith(item.href))
-            
+
             const NavLink = (
               <Link
                 key={item.href}

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 
 export interface ViolationLog {
-  type: "CAMERA_VIOLATION" | "TAB_SWITCH" | "WINDOW_BLUR" | "COPY_ATTEMPT" | "PASTE_ATTEMPT" | "CUT_ATTEMPT" | "CTRL_C" | "CTRL_V"
+  type: "CAMERA_VIOLATION" | "TAB_SWITCH" | "WINDOW_BLUR" | "COPY_ATTEMPT" | "PASTE_ATTEMPT" | "CUT_ATTEMPT" | "CTRL_C" | "CTRL_V" | "NO_FACE" | "MULTIPLE_FACES"
   reason?: string
   duration?: number
   context?: string
@@ -11,14 +11,93 @@ export interface ViolationLog {
 export function useAntiCheat(sessionId: string, enabled: boolean = true) {
   const [violations, setViolations] = useState<ViolationLog[]>([])
   const [cameraActive, setCameraActive] = useState(false)
+  const [faceDetectionActive, setFaceDetectionActive] = useState(false)
   const violationsRef = useRef<ViolationLog[]>([])
   const tabHiddenTimeRef = useRef<number | null>(null)
   const windowBlurTimeRef = useRef<number | null>(null)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const cameraCheckIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const faceDetectionIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const videoElementRef = useRef<HTMLVideoElement | null>(null)
+  const noFaceCountRef = useRef<number>(0)
+  const faceApiLoadedRef = useRef<boolean>(false)
+
+  // ===== LOGGING FUNCTION (defined early for use in other functions) =====
+  const logViolation = useCallback((violation: ViolationLog) => {
+    violationsRef.current.push(violation)
+    setViolations([...violationsRef.current])
+    console.warn("[AntiCheat]", violation)
+  }, [])
+
+  // ===== FACE DETECTION =====
+  const initializeFaceDetection = useCallback(async (videoElement: HTMLVideoElement) => {
+    try {
+      // Dynamic import of face-api.js
+      const faceapi = await import("face-api.js")
+
+      // Load the tiny face detector model (smallest and fastest)
+      if (!faceApiLoadedRef.current) {
+        console.log("[AntiCheat] Loading face detection models...")
+        await faceapi.nets.tinyFaceDetector.loadFromUri("/models")
+        faceApiLoadedRef.current = true
+        console.log("[AntiCheat] Face detection models loaded successfully")
+      }
+
+      setFaceDetectionActive(true)
+
+      // Start face detection loop
+      faceDetectionIntervalRef.current = setInterval(async () => {
+        if (!videoElement || videoElement.paused || videoElement.ended) {
+          return
+        }
+
+        try {
+          const detections = await faceapi.detectAllFaces(
+            videoElement,
+            new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+          )
+
+          const faceCount = detections.length
+
+          if (faceCount === 0) {
+            noFaceCountRef.current += 1
+            console.log(`[AntiCheat] No face detected (count: ${noFaceCountRef.current})`)
+
+            // Log violation after 3 consecutive no-face detections (~9 seconds)
+            if (noFaceCountRef.current >= 3) {
+              logViolation({
+                type: "NO_FACE",
+                reason: "No face detected for extended period",
+                timestamp: Date.now(),
+              })
+              noFaceCountRef.current = 0 // Reset counter after logging
+            }
+          } else if (faceCount > 1) {
+            console.warn(`[AntiCheat] Multiple faces detected: ${faceCount}`)
+            logViolation({
+              type: "MULTIPLE_FACES",
+              reason: `${faceCount} faces detected`,
+              timestamp: Date.now(),
+            })
+            noFaceCountRef.current = 0
+          } else {
+            // Exactly 1 face - reset counter
+            noFaceCountRef.current = 0
+          }
+        } catch (detectionError) {
+          console.warn("[AntiCheat] Face detection error:", detectionError)
+        }
+      }, 3000) // Check every 3 seconds
+
+      console.log("[AntiCheat] Face detection started")
+    } catch (error) {
+      console.error("[AntiCheat] Failed to initialize face detection:", error)
+      setFaceDetectionActive(false)
+    }
+  }, [logViolation])
 
   // ===== 1. CAMERA DETECTION =====
-  const initializeCamera = async () => {
+  const initializeCamera = useCallback(async () => {
     if (!enabled) return
 
     try {
@@ -37,35 +116,64 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
       console.log("[AntiCheat] Starting camera access request...")
 
       // Step 2: Request camera access with proper constraints
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: "user", // Front camera
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: false
-      })
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user", // Front camera
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        })
+      } catch (primaryError: any) {
+        console.warn("[AntiCheat] Primary camera access failed, trying fallback...", primaryError?.name)
+
+        // Fallback: Just request video, any available
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false
+          })
+        } catch (fallbackError: any) {
+          console.error("[AntiCheat] Fallback camera access failed:", fallbackError?.name)
+          throw fallbackError; // Re-throw to be caught by outer catch block
+        }
+      }
 
       console.log("[AntiCheat] Camera permission granted, stream obtained")
-      
+
       cameraStreamRef.current = stream
       setCameraActive(true)
-      
-      // Step 3: Display the stream in a hidden video element
-      const video = document.createElement("video")
-      video.setAttribute("data-test-video", "camera-feed") // For testing/debugging
+
+      // Step 3: Create video element for face detection
+      let video = document.querySelector<HTMLVideoElement>('[data-test-video="camera-feed"]')
+      if (!video) {
+        video = document.createElement("video")
+        video.setAttribute("data-test-video", "camera-feed")
+        video.style.position = "fixed"
+        video.style.bottom = "10px"
+        video.style.right = "10px"
+        video.style.width = "120px"
+        video.style.height = "90px"
+        video.style.borderRadius = "8px"
+        video.style.border = "2px solid #22c55e"
+        video.style.zIndex = "9999"
+        video.style.objectFit = "cover"
+        document.body.appendChild(video)
+      }
+
       video.srcObject = stream
       video.autoplay = true
       video.playsInline = true
       video.muted = true
-      
-      // Add to DOM but hide it
-      video.style.display = "none"
-      document.body.appendChild(video)
-      
-      // Ensure video plays
+      videoElementRef.current = video
+
+      // Ensure video plays then start face detection
       video.play().then(() => {
         console.log("[AntiCheat] Video stream playing successfully")
+        // Initialize face detection after video is playing
+        initializeFaceDetection(video)
       }).catch((err) => {
         console.warn("[AntiCheat] Video play error:", err)
       })
@@ -94,7 +202,7 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
     } catch (error: any) {
       setCameraActive(false)
       console.error("[AntiCheat] Camera access error:", error?.name, error?.message)
-      
+
       // Map specific errors for better debugging
       let reason = "PERMISSION_DENIED"
       if (error?.name === "NotAllowedError") {
@@ -106,16 +214,18 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
       } else if (error?.name === "SecurityError") {
         reason = "SECURITY_ERROR"
       }
-      
+
       logViolation({
         type: "CAMERA_VIOLATION",
         reason: reason,
         timestamp: Date.now(),
       })
-    }
-  }
 
-  const stopCamera = () => {
+      throw error; // Re-throw to allow component to handle the UI error feedback
+    }
+  }, [enabled, logViolation, initializeFaceDetection])
+
+  const stopCamera = useCallback(() => {
     if (cameraStreamRef.current) {
       cameraStreamRef.current.getTracks().forEach((track) => track.stop())
       cameraStreamRef.current = null
@@ -125,7 +235,18 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
       clearInterval(cameraCheckIntervalRef.current)
       cameraCheckIntervalRef.current = null
     }
-  }
+    if (faceDetectionIntervalRef.current) {
+      clearInterval(faceDetectionIntervalRef.current)
+      faceDetectionIntervalRef.current = null
+    }
+    setFaceDetectionActive(false)
+
+    // Remove video element
+    const video = document.querySelector('[data-test-video="camera-feed"]')
+    if (video) {
+      video.remove()
+    }
+  }, [])
 
   // ===== 2. TAB VISIBILITY & WINDOW BLUR DETECTION =====
   useEffect(() => {
@@ -182,7 +303,7 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
       window.removeEventListener("blur", handleBlur)
       window.removeEventListener("focus", handleFocus)
     }
-  }, [enabled])
+  }, [enabled, logViolation])
 
   // ===== 3. COPY / PASTE / KEYBOARD DETECTION =====
   useEffect(() => {
@@ -249,14 +370,7 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
       document.removeEventListener("cut", handleCut)
       document.removeEventListener("keydown", handleKeyDown)
     }
-  }, [enabled])
-
-  // ===== LOGGING FUNCTION =====
-  const logViolation = (violation: ViolationLog) => {
-    violationsRef.current.push(violation)
-    setViolations([...violationsRef.current])
-    console.warn("[AntiCheat]", violation)
-  }
+  }, [enabled, logViolation])
 
   // ===== SEND LOGS PERIODICALLY =====
   useEffect(() => {
@@ -281,7 +395,7 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
   // ===== BACKEND COMMUNICATION =====
   const sendLogsToBackend = async (logs: ViolationLog[]) => {
     try {
-      const response = await fetch("http://127.0.0.1:8001/api/anti-cheat/logs", {
+      const response = await fetch("http://127.0.0.1:8000/api/anti-cheat/logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -314,6 +428,14 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
       if (cameraCheckIntervalRef.current) {
         clearInterval(cameraCheckIntervalRef.current)
       }
+      if (faceDetectionIntervalRef.current) {
+        clearInterval(faceDetectionIntervalRef.current)
+      }
+      // Remove video element
+      const video = document.querySelector('[data-test-video="camera-feed"]')
+      if (video) {
+        video.remove()
+      }
     }
   }, [])
 
@@ -324,5 +446,6 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true) {
     sendLogsOnCompletion,
     violationCount: violations.length,
     cameraActive,
+    faceDetectionActive,
   }
 }

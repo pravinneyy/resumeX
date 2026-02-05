@@ -1,0 +1,252 @@
+[
+  {
+    "id": 1,
+    "section": "Numerical Reasoning",
+    "question": "An investor puts $5,000 into an account with an annual compound interest rate of 4%. What is the total value of the investment after 2 years?",
+    "options": "A) $5,200 | B) $5,400 | C) $5,408 | D) $5,416",
+    "answer": "C) $5,408",
+    "explanation": "Year 1: 5000 * 1.04 = 5200. Year 2: 5200 * 1.04 = 5408."
+  },
+  {
+    "id": 2,
+    "section": "Numerical Reasoning",
+    "question": "Company A has 120 employees and an average age of 30. Company B has 80 employees and an average age of 40. What is the combined average age of both companies?",
+    "options": "A) 34 | B) 35 | C) 33 | D) 36",
+    "answer": "A) 34",
+    "explanation": "Total years A: 120 * 30 = 3600. Total years B: 80 * 40 = 3200. Combined Total: 6800. Total employees: 200. Average: 6800 / 200 = 34."
+  },
+  {
+    "id": 3,
+    "section": "Numerical Reasoning",
+    "question": "A product costs \u20ac200. The exchange rate is \u20ac1 = $1.10. If the bank charges a 2% conversion fee on the dollar amount, how much does the product cost in dollars?",
+    "options": "A) $220.00 | B) $224.40 | C) $215.60 | D) $222.20",
+    "answer": "B) $224.40",
+    "explanation": "Convert to dollars: 200 * 1.10 = $220. Fee: 220 * 0.02 = 4.40. Total: 220 + 4.40 = 224.40."
+  },
+  {
+    "id": 4,
+    "section": "Numerical Reasoning",
+    "question": "Three partners share a profit of $60,000 in the ratio 2:3:5. How much less does the partner with the smallest share receive compared to the partner with the largest share?",
+    "options": "A) $12,000 | B) $18,000 | C) $24,000 | D) $30,000",
+    "answer": "B) $18,000",
+    "explanation": "Total parts = 2+3+5=10. Value per part = 60,000 / 10 = 6,000. Smallest (2 parts) = 12,000. Largest (5 parts) = 30,000. Difference = 30,000 - 12,000 = 18,000."
+  },
+  {
+    "id": 5,
+    "section": "Numerical Reasoning",
+    "question": "A tank is 40% full. Adding 30 liters makes it 55% full. What is the total capacity of the tank?",
+    "options": "A) 150 liters | B) 200 liters | C) 250 liters | D) 300 liters",
+    "answer": "B) 200 liters",
+    "explanation": "Difference in percentage = 55% - 40% = 15%. 15% of Capacity = 30 liters. 1% = 2 liters. 100% = 200 liters."
+  },
+  {
+    "id": 6,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The shift to remote work has reduced overhead costs for many corporations. However, critics argue it erodes company culture and hampers innovation, which often stems from spontaneous interactions. Proponents counter that digital tools can simulate these interactions and that the flexibility increases employee retention.",
+    "question": "The passage suggests that remote work definitely leads to a loss of innovation.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "B) False",
+    "explanation": "The passage says 'critics argue' it hampers innovation, not that it is a definite fact. Proponents offer a counter-argument."
+  },
+  {
+    "id": 7,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The shift to remote work has reduced overhead costs for many corporations. However, critics argue it erodes company culture and hampers innovation, which often stems from spontaneous interactions. Proponents counter that digital tools can simulate these interactions and that the flexibility increases employee retention.",
+    "question": "According to the text, reduced overhead costs are a benefit of remote work for corporations.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "A) True",
+    "explanation": "The first sentence explicitly states: 'The shift to remote work has reduced overhead costs for many corporations.'"
+  },
+  {
+    "id": 8,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The shift to remote work has reduced overhead costs for many corporations. However, critics argue it erodes company culture and hampers innovation, which often stems from spontaneous interactions. Proponents counter that digital tools can simulate these interactions and that the flexibility increases employee retention.",
+    "question": "Spontaneous interactions are the only source of innovation mentioned in the text.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "C) Cannot be determined",
+    "explanation": "The text says innovation 'often stems from' spontaneous interactions, but does not claim it is the *only* source."
+  },
+  {
+    "id": 9,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The shift to remote work has reduced overhead costs for many corporations. However, critics argue it erodes company culture and hampers innovation, which often stems from spontaneous interactions. Proponents counter that digital tools can simulate these interactions and that the flexibility increases employee retention.",
+    "question": "Proponents believe that high employee retention is linked to the flexibility of remote work.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "A) True",
+    "explanation": "The text states: 'Proponents counter that... the flexibility increases employee retention.'"
+  },
+  {
+    "id": 10,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The shift to remote work has reduced overhead costs for many corporations. However, critics argue it erodes company culture and hampers innovation, which often stems from spontaneous interactions. Proponents counter that digital tools can simulate these interactions and that the flexibility increases employee retention.",
+    "question": "All employees prefer remote work due to the flexibility it offers.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "C) Cannot be determined",
+    "explanation": "The text mentions flexibility increases retention, but does not make a blanket statement about the preference of 'all' employees."
+  },
+  {
+    "id": 11,
+    "section": "Abstract Reasoning",
+    "question": "Identify the next number in the sequence: 100, 95, 85, 70, 50, ...",
+    "options": "A) 20 | B) 25 | C) 30 | D) 35",
+    "answer": "B) 25",
+    "explanation": "The subtraction amount increases by 5 each time: -5, -10, -15, -20. Next is -25. 50 - 25 = 25."
+  },
+  {
+    "id": 12,
+    "section": "Abstract Reasoning",
+    "question": "Analogies: ODOMETER is to MILEAGE as COMPASS is to...",
+    "options": "A) NEEDLE | B) DIRECTION | C) NORTH | D) HIKING",
+    "answer": "B) DIRECTION",
+    "explanation": "An odometer measures/indicates mileage; a compass indicates direction."
+  },
+  {
+    "id": 13,
+    "section": "Abstract Reasoning",
+    "question": "If 'ROCKET' is coded as 'TQEMGV' (R+2, O+2...), how is 'LAUNCH' coded using the same rule (+2 letters)?",
+    "options": "A) NCWPEJ | B) MCWPEJ | C) NCWQFJ | D) NCVPEJ",
+    "answer": "A) NCWPEJ",
+    "explanation": "L+2=N, A+2=C, U+2=W, N+2=P, C+2=E, H+2=J."
+  },
+  {
+    "id": 14,
+    "section": "Abstract Reasoning",
+    "question": "Logical Deduction: All P are Q. No Q are R.",
+    "options": "A) No P are R | B) Some P are R | C) All R are P | D) Some Q are P",
+    "answer": "A) No P are R",
+    "explanation": "If all P are inside the Q circle, and the Q circle never touches the R circle, then P can never touch R."
+  },
+  {
+    "id": 15,
+    "section": "Abstract Reasoning",
+    "question": "Which word is the odd one out?",
+    "options": "A) Radius | B) Diameter | C) Chord | D) Area",
+    "answer": "D) Area",
+    "explanation": "Radius, Diameter, and Chord are lines within a circle. Area is the measure of the space inside."
+  },
+  {
+    "id": 16,
+    "section": "Numerical Reasoning",
+    "question": "An item is sold for $240, resulting in a 20% loss. What selling price would result in a 20% profit?",
+    "options": "A) $300 | B) $320 | C) $360 | D) $400",
+    "answer": "C) $360",
+    "explanation": "Cost Price (CP) = 240 / 0.8 = 300. To get 20% profit: 300 * 1.2 = 360."
+  },
+  {
+    "id": 17,
+    "section": "Numerical Reasoning",
+    "question": "Worker A takes 10 days to finish a job. Worker B takes 15 days. They work together for 4 days, then A leaves. How many more days will B take to finish the remaining work?",
+    "options": "A) 2 days | B) 4 days | C) 5 days | D) 6 days",
+    "answer": "C) 5 days",
+    "explanation": "Combined rate = 1/10 + 1/15 = 1/6 job/day. In 4 days, they do 4/6 = 2/3. Remaining = 1/3. B's rate is 1/15. Time = (1/3) / (1/15) = 5 days."
+  },
+  {
+    "id": 18,
+    "section": "Numerical Reasoning",
+    "question": "The average of 5 numbers is 20. If one number is removed, the average of the remaining 4 numbers becomes 23. What number was removed?",
+    "options": "A) 6 | B) 8 | C) 10 | D) 12",
+    "answer": "B) 8",
+    "explanation": "Sum of 5 = 100. Sum of 4 = 4 * 23 = 92. Difference = 100 - 92 = 8."
+  },
+  {
+    "id": 19,
+    "section": "Numerical Reasoning",
+    "question": "A mixture of 40 liters of milk and water contains 10% water. How much water must be added to make the water content 20% in the new mixture?",
+    "options": "A) 4 liters | B) 5 liters | C) 6 liters | D) 8 liters",
+    "answer": "B) 5 liters",
+    "explanation": "Milk = 36L (constant). In new mix, Milk is 80%. So 36 = 0.8 * Total. New Total = 45L. Added water = 45 - 40 = 5L."
+  },
+  {
+    "id": 20,
+    "section": "Numerical Reasoning",
+    "question": "Two fair six-sided dice are rolled. What is the probability that the sum of the numbers shown is exactly 7?",
+    "options": "A) 1/6 | B) 1/8 | C) 1/9 | D) 1/12",
+    "answer": "A) 1/6",
+    "explanation": "Total combinations = 36. Pairs summing to 7: (1,6), (2,5), (3,4), (4,3), (5,2), (6,1). Total 6 pairs. Probability = 6/36 = 1/6."
+  },
+  {
+    "id": 21,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The 'Gig Economy' is characterized by short-term contracts and freelance work. Advocates highlight the flexibility it offers. However, critics point out the lack of benefits like health insurance and job security. Governments are currently struggling to update labor laws to protect gig workers without stifling the innovation of platforms.",
+    "question": "The passage implies that gig economy workers typically enjoy high job security.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "B) False",
+    "explanation": "The text explicitly states critics point out the 'lack of... job security'."
+  },
+  {
+    "id": 22,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The 'Gig Economy' is characterized by short-term contracts and freelance work. Advocates highlight the flexibility it offers. However, critics point out the lack of benefits like health insurance and job security. Governments are currently struggling to update labor laws to protect gig workers without stifling the innovation of platforms.",
+    "question": "Governments have successfully finalized new laws that balance protection and innovation.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "B) False",
+    "explanation": "The passage says governments are 'currently struggling to update labor laws', implying they haven't successfully finalized them yet."
+  },
+  {
+    "id": 23,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The 'Gig Economy' is characterized by short-term contracts and freelance work. Advocates highlight the flexibility it offers. However, critics point out the lack of benefits like health insurance and job security. Governments are currently struggling to update labor laws to protect gig workers without stifling the innovation of platforms.",
+    "question": "Flexibility is the only advantage of the gig economy mentioned by advocates.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "C) Cannot be determined",
+    "explanation": "Advocates 'highlight the flexibility', but the text does not say it is the *only* advantage they see."
+  },
+  {
+    "id": 24,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The 'Gig Economy' is characterized by short-term contracts and freelance work. Advocates highlight the flexibility it offers. However, critics point out the lack of benefits like health insurance and job security. Governments are currently struggling to update labor laws to protect gig workers without stifling the innovation of platforms.",
+    "question": "The text suggests that innovation could be stifled by overly protective labor laws.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "A) True",
+    "explanation": "The text mentions the struggle to protect workers 'without stifling the innovation', implying a risk exists."
+  },
+  {
+    "id": 25,
+    "section": "Verbal Reasoning",
+    "context": "Passage: The 'Gig Economy' is characterized by short-term contracts and freelance work. Advocates highlight the flexibility it offers. However, critics point out the lack of benefits like health insurance and job security. Governments are currently struggling to update labor laws to protect gig workers without stifling the innovation of platforms.",
+    "question": "Gig economy platforms provide full health insurance to all their contractors.",
+    "options": "A) True | B) False | C) Cannot be determined",
+    "answer": "B) False",
+    "explanation": "Critics point out the 'lack of benefits such as health insurance'."
+  },
+  {
+    "id": 26,
+    "section": "Abstract Reasoning",
+    "question": "Identify the next pair of letters in the sequence: AZ, CX, EV, GT, ...",
+    "options": "A) HS | B) IR | C) KP | D) JQ",
+    "answer": "B) IR",
+    "explanation": "First letter: A (+2) C (+2) E (+2) G -> I. Second letter: Z (-2) X (-2) V (-2) T -> R. Result: IR."
+  },
+  {
+    "id": 27,
+    "section": "Abstract Reasoning",
+    "question": "Which word is the odd one out?",
+    "options": "A) Moon | B) Venus | C) Jupiter | D) Mars",
+    "answer": "A) Moon",
+    "explanation": "Venus, Jupiter, and Mars are planets. The Moon is a satellite/moon."
+  },
+  {
+    "id": 28,
+    "section": "Abstract Reasoning",
+    "question": "Syllogism: No A is B. No B is C. Does it follow that 'No A is C'?",
+    "options": "A) Yes | B) No",
+    "answer": "B) No",
+    "explanation": "If A is 'Cats', B is 'Dogs', and C is 'Pets' (ignoring overlap for a moment) or simply circles: A and C can overlap completely while both are disjoint from B. We cannot conclude A and C don't touch."
+  },
+  {
+    "id": 29,
+    "section": "Abstract Reasoning",
+    "question": "Analogy: SCALPEL is to SURGEON as CHISEL is to...",
+    "options": "A) WRITER | B) SCULPTOR | C) PAINTER | D) BAKER",
+    "answer": "B) SCULPTOR",
+    "explanation": "A scalpel is the primary tool of a surgeon; a chisel is the primary tool of a sculptor."
+  },
+  {
+    "id": 30,
+    "section": "Abstract Reasoning",
+    "question": "Number Matrix Logic: 3, 5, 8 | 2, 4, 6 | 4, ?, 11. What is '?'",
+    "options": "A) 6 | B) 7 | C) 8 | D) 5",
+    "answer": "B) 7",
+    "explanation": "Row 1: 3+5=8. Row 2: 2+4=6. Row 3: 4+ ? = 11. ? = 7."
+  }
+]

@@ -105,7 +105,7 @@ export default function CandidateDashboard() {
                                 </p>
                             </div>
                         </div>
-                        <Button onClick={() => router.push(`/candidate/${activeTask.job_id}/ide`)} className="w-full md:w-auto">
+                        <Button onClick={() => router.push(`/candidate/interviews/${activeTask.job_id}/psychometric`)} className="w-full md:w-auto">
                             Start Assessment <ArrowRight className="w-4 h-4 ml-2" />
                         </Button>
                     </CardContent>
