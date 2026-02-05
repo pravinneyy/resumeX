@@ -1,0 +1,358 @@
+{
+  "sections": [
+    {
+      "section": "Conceptual Questions",
+      "type": "conceptual",
+      "questions": [
+        {
+          "id": 1,
+          "question": "Explain the concept of Big O notation to a non-technical person.",
+          "keywords": [
+            "Scalability",
+            "Growth Rate",
+            "Efficiency",
+            "Worst-case scenario",
+            "Time vs. Space complexity"
+          ]
+        },
+        {
+          "id": 2,
+          "question": "When would you choose a NoSQL database over a SQL database?",
+          "keywords": [
+            "Unstructured data",
+            "Horizontal scaling",
+            "Flexible schema",
+            "High write throughput",
+            "CAP Theorem"
+          ]
+        },
+        {
+          "id": 3,
+          "question": "Explain the difference between Monolithic and Microservices architecture.",
+          "keywords": [
+            "Single vs. Distributed",
+            "Coupling",
+            "Deployment independence",
+            "Fault isolation",
+            "Complexity overhead"
+          ]
+        },
+        {
+          "id": 4,
+          "question": "What is CI/CD and why is it important?",
+          "keywords": [
+            "Automation",
+            "Continuous Integration",
+            "Continuous Deployment",
+            "Faster feedback loops",
+            "Reduced manual error",
+            "Pipeline"
+          ]
+        },
+        {
+          "id": 5,
+          "question": "How do you ensure code quality before deployment?",
+          "keywords": [
+            "Unit Testing",
+            "Integration Testing",
+            "Static Analysis",
+            "Code Reviews",
+            "Test Driven Development"
+          ]
+        },
+        {
+          "id": 6,
+          "question": "Explain the difference between REST and GraphQL.",
+          "keywords": [
+            "Overfetching",
+            "Underfetching",
+            "Single endpoint",
+            "Multiple endpoints",
+            "Strong typing",
+            "Caching"
+          ]
+        },
+        {
+          "id": 7,
+          "question": "What happens when you type a URL into a browser and hit enter?",
+          "keywords": [
+            "DNS Resolution",
+            "TCP/IP Handshake",
+            "HTTP/HTTPS Request",
+            "Server processing",
+            "DOM Rendering"
+          ]
+        },
+        {
+          "id": 8,
+          "question": "How do you handle authentication and authorization in a web app?",
+          "keywords": [
+            "JWT",
+            "OAuth",
+            "Session cookies",
+            "Role-Based Access Control",
+            "Hashing",
+            "Salting passwords"
+          ]
+        },
+        {
+          "id": 9,
+          "question": "Explain the concept of Technical Debt.",
+          "keywords": [
+            "Trade-off",
+            "Speed vs. Quality",
+            "Interest payments",
+            "Refactoring",
+            "Intentional",
+            "Accidental"
+          ]
+        },
+        {
+          "id": 10,
+          "question": "What are the SOLID principles? (Pick one to explain).",
+          "keywords": [
+            "Single Responsibility",
+            "Open/Closed",
+            "Liskov Substitution",
+            "Interface Segregation",
+            "Dependency Inversion",
+            "Decoupling"
+          ]
+        }
+      ]
+    },
+    {
+      "section": "Situational Questions",
+      "type": "situational",
+      "questions": [
+        {
+          "id": 11,
+          "question": "Your application is running slowly in production. How do you debug it?",
+          "keywords": [
+            "Profiling",
+            "Monitoring tools",
+            "Database indexing",
+            "N+1 problem",
+            "Latency",
+            "Caching layers"
+          ]
+        },
+        {
+          "id": 12,
+          "question": "A critical bug is discovered in production immediately after deployment. What do you do?",
+          "keywords": [
+            "Rollback immediately",
+            "Communicate",
+            "Stakeholders",
+            "Hotfix",
+            "Post-mortem",
+            "Root Cause Analysis"
+          ]
+        },
+        {
+          "id": 13,
+          "question": "You need to integrate a third-party API that is unreliable and often crashes. How do you handle this?",
+          "keywords": [
+            "Circuit Breaker",
+            "Retries",
+            "Exponential backoff",
+            "Fallback mechanisms",
+            "Asynchronous processing",
+            "Queues"
+          ]
+        },
+        {
+          "id": 14,
+          "question": "You are asked to add a feature, but the codebase is messy (legacy code). How do you approach it?",
+          "keywords": [
+            "Write tests first",
+            "Incremental refactoring",
+            "Boy Scout Rule",
+            "Legacy code",
+            "Do not rewrite everything"
+          ]
+        },
+        {
+          "id": 15,
+          "question": "How would you design a URL shortening service (like Bit.ly)?",
+          "keywords": [
+            "Hashing algorithms",
+            "Collision handling",
+            "Database read/write ratio",
+            "Scalability",
+            "Unique ID generation"
+          ]
+        },
+        {
+          "id": 16,
+          "question": "Product management changes the requirements two days before the sprint ends. What do you do?",
+          "keywords": [
+            "Impact analysis",
+            "Trade-offs",
+            "Communication",
+            "Agile flexibility",
+            "Scope creep"
+          ]
+        },
+        {
+          "id": 17,
+          "question": "You notice a security vulnerability in a colleague's code during a review. How do you handle it?",
+          "keywords": [
+            "Private feedback",
+            "Security standards",
+            "OWASP",
+            "Objective explanation",
+            "Blameless culture"
+          ]
+        },
+        {
+          "id": 18,
+          "question": "We need to migrate a database with zero downtime. How would you plan it?",
+          "keywords": [
+            "Dual writing",
+            "Backfilling data",
+            "Feature flags",
+            "Read-replica promotion",
+            "Rollback plan"
+          ]
+        },
+        {
+          "id": 19,
+          "question": "Two developers disagree on which framework to use for a new project. How do you resolve it?",
+          "keywords": [
+            "Proof of Concept",
+            "Pros and Cons",
+            "Long-term maintainability",
+            "Hiring pool",
+            "Performance metrics"
+          ]
+        },
+        {
+          "id": 20,
+          "question": "Your server is running out of memory. What steps do you take?",
+          "keywords": [
+            "Memory leak analysis",
+            "Heap dumps",
+            "Garbage collection tuning",
+            "Vertical scaling",
+            "Horizontal scaling",
+            "Resource limits"
+          ]
+        }
+      ]
+    },
+    {
+      "section": "Behavioral Questions",
+      "type": "behavioral",
+      "questions": [
+        {
+          "id": 21,
+          "question": "Tell me about a time you broke production.",
+          "keywords": [
+            "Accountability",
+            "Quick remediation",
+            "Root Cause Analysis",
+            "Systemic prevention",
+            "Automated checks"
+          ]
+        },
+        {
+          "id": 22,
+          "question": "Describe a time you had a conflict with a Product Manager or Designer.",
+          "keywords": [
+            "Technical constraints",
+            "User experience",
+            "Compromise",
+            "Data-driven arguments",
+            "Shared goal"
+          ]
+        },
+        {
+          "id": 23,
+          "question": "Tell me about a time you had to learn a new technology quickly.",
+          "keywords": [
+            "Self-starter",
+            "Documentation",
+            "Prototype",
+            "Business value",
+            "Curiosity"
+          ]
+        },
+        {
+          "id": 24,
+          "question": "Describe a situation where you optimized a process or improved efficiency.",
+          "keywords": [
+            "Automation",
+            "CI/CD improvements",
+            "Reducing build times",
+            "Metrics",
+            "Before vs After"
+          ]
+        },
+        {
+          "id": 25,
+          "question": "Tell me about a time you mentored a junior developer.",
+          "keywords": [
+            "Patience",
+            "Code reviews",
+            "Pair programming",
+            "Encouraging independence",
+            "Empathy"
+          ]
+        },
+        {
+          "id": 26,
+          "question": "Have you ever disagreed with a senior engineer's architectural decision? What happened?",
+          "keywords": [
+            "Respectful challenge",
+            "Evidence-based",
+            "Disagree and Commit",
+            "Professionalism"
+          ]
+        },
+        {
+          "id": 27,
+          "question": "Tell me about a time you missed a deadline.",
+          "keywords": [
+            "Early warning",
+            "Managing expectations",
+            "Prioritizing MVP",
+            "Lessons learned"
+          ]
+        },
+        {
+          "id": 28,
+          "question": "Describe a time you had to explain a complex technical issue to a non-technical stakeholder.",
+          "keywords": [
+            "Analogies",
+            "Removing jargon",
+            "Business impact",
+            "Clarity"
+          ]
+        },
+        {
+          "id": 29,
+          "question": "What is your biggest professional achievement so far?",
+          "keywords": [
+            "Impact",
+            "Scale",
+            "Complexity",
+            "Teamwork",
+            "Measurable results"
+          ]
+        },
+        {
+          "id": 30,
+          "question": "How do you handle code reviews when someone harshly criticizes your work?",
+          "keywords": [
+            "Detachment",
+            "Objectivity",
+            "Clarification",
+            "Growth mindset",
+            "Professionalism"
+          ]
+        }
+      ]
+    }
+  ]
+}

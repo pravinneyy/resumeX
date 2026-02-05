@@ -41,6 +41,260 @@ class JudgeError(Exception):
     pass
 
 
+class Compiler:
+    """
+    Compilation/Syntax validation before execution.
+    
+    For Python: Uses ast.parse() to check syntax
+    For compiled languages (future): Will invoke actual compilers
+    
+    This step runs BEFORE the judge to provide fast feedback on syntax errors.
+    """
+    
+    @staticmethod
+    def compile_python(code: str) -> Dict[str, Any]:
+        """
+        Compile Python code to check for syntax errors.
+        
+        Returns:
+            {
+                "success": bool,
+                "error": str | None,
+                "error_line": int | None,
+                "error_type": str | None
+            }
+        """
+        import ast
+        import traceback
+        
+        try:
+            # Parse the code into an AST (Abstract Syntax Tree)
+            # This catches all syntax errors without executing the code
+            ast.parse(code)
+            
+            return {
+                "success": True,
+                "error": None,
+                "error_line": None,
+                "error_type": None
+            }
+        except SyntaxError as e:
+            return {
+                "success": False,
+                "error": f"SyntaxError: {e.msg}",
+                "error_line": e.lineno,
+                "error_type": "SyntaxError",
+                "error_details": {
+                    "line": e.lineno,
+                    "offset": e.offset,
+                    "text": e.text.strip() if e.text else None
+                }
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"CompilationError: {str(e)}",
+                "error_line": None,
+                "error_type": type(e).__name__
+            }
+    
+    @staticmethod
+    def compile_code(code: str, language: str = "python") -> Dict[str, Any]:
+        """
+        Language-agnostic compilation entry point.
+        
+        Dispatches to the appropriate compiler based on language.
+        
+        Args:
+            code: Source code to compile
+            language: Programming language (python, javascript, java, cpp, go)
+        
+        Returns:
+            Compilation result with success status and error details
+        """
+        language = language.lower()
+        
+        if language == "python":
+            return Compiler.compile_python(code)
+        
+        elif language == "javascript":
+            # For JavaScript, we can use a basic syntax check via subprocess
+            return Compiler._compile_javascript(code)
+        
+        elif language == "java":
+            # Java requires actual compilation
+            return Compiler._compile_java(code)
+        
+        elif language in ["cpp", "c++"]:
+            # C++ requires actual compilation
+            return Compiler._compile_cpp(code)
+        
+        else:
+            # Unsupported language - skip compilation, let execution handle it
+            return {
+                "success": True,
+                "error": None,
+                "error_line": None,
+                "error_type": None,
+                "warning": f"No compiler available for '{language}', skipping syntax check"
+            }
+    
+    @staticmethod
+    def _compile_javascript(code: str) -> Dict[str, Any]:
+        """Check JavaScript syntax using Node.js --check flag"""
+        import tempfile
+        import os
+        
+        try:
+            # Write code to temp file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+                f.write(code)
+                temp_path = f.name
+            
+            try:
+                # Use Node.js to check syntax
+                result = subprocess.run(
+                    ["node", "--check", temp_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=5.0
+                )
+                
+                if result.returncode == 0:
+                    return {"success": True, "error": None, "error_line": None, "error_type": None}
+                else:
+                    # Parse error from stderr
+                    error_msg = result.stderr.strip()
+                    return {
+                        "success": False,
+                        "error": error_msg or "JavaScript syntax error",
+                        "error_line": None,
+                        "error_type": "SyntaxError"
+                    }
+            finally:
+                os.unlink(temp_path)
+                
+        except FileNotFoundError:
+            return {
+                "success": True,
+                "error": None,
+                "warning": "Node.js not found, skipping JavaScript syntax check"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"JavaScript compilation error: {str(e)}",
+                "error_line": None,
+                "error_type": "CompilationError"
+            }
+    
+    @staticmethod
+    def _compile_java(code: str) -> Dict[str, Any]:
+        """Compile Java code using javac"""
+        import tempfile
+        import os
+        
+        try:
+            # Extract class name from code
+            class_match = re.search(r'public\s+class\s+(\w+)', code)
+            class_name = class_match.group(1) if class_match else "Solution"
+            
+            # Create temp directory for Java compilation
+            with tempfile.TemporaryDirectory() as temp_dir:
+                java_file = os.path.join(temp_dir, f"{class_name}.java")
+                
+                with open(java_file, 'w') as f:
+                    f.write(code)
+                
+                # Compile with javac
+                result = subprocess.run(
+                    ["javac", java_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=10.0,
+                    cwd=temp_dir
+                )
+                
+                if result.returncode == 0:
+                    return {"success": True, "error": None, "error_line": None, "error_type": None}
+                else:
+                    # Parse line number from javac error
+                    error_msg = result.stderr.strip()
+                    line_match = re.search(r':(\d+):', error_msg)
+                    error_line = int(line_match.group(1)) if line_match else None
+                    
+                    return {
+                        "success": False,
+                        "error": error_msg,
+                        "error_line": error_line,
+                        "error_type": "CompilationError"
+                    }
+                    
+        except FileNotFoundError:
+            return {
+                "success": True,
+                "error": None,
+                "warning": "Java compiler (javac) not found, skipping compilation"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Java compilation error: {str(e)}",
+                "error_line": None,
+                "error_type": "CompilationError"
+            }
+    
+    @staticmethod
+    def _compile_cpp(code: str) -> Dict[str, Any]:
+        """Compile C++ code using g++"""
+        import tempfile
+        import os
+        
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                cpp_file = os.path.join(temp_dir, "solution.cpp")
+                output_file = os.path.join(temp_dir, "solution")
+                
+                with open(cpp_file, 'w') as f:
+                    f.write(code)
+                
+                # Compile with g++ (syntax check only with -fsyntax-only for speed)
+                result = subprocess.run(
+                    ["g++", "-fsyntax-only", cpp_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=10.0
+                )
+                
+                if result.returncode == 0:
+                    return {"success": True, "error": None, "error_line": None, "error_type": None}
+                else:
+                    error_msg = result.stderr.strip()
+                    line_match = re.search(r':(\d+):', error_msg)
+                    error_line = int(line_match.group(1)) if line_match else None
+                    
+                    return {
+                        "success": False,
+                        "error": error_msg,
+                        "error_line": error_line,
+                        "error_type": "CompilationError"
+                    }
+                    
+        except FileNotFoundError:
+            return {
+                "success": True,
+                "error": None,
+                "warning": "C++ compiler (g++) not found, skipping compilation"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"C++ compilation error: {str(e)}",
+                "error_line": None,
+                "error_type": "CompilationError"
+            }
+
+
 class SafetyChecker:
     """Detects unsafe code patterns"""
     
@@ -428,7 +682,33 @@ class JudgingSession:
                 "error": error_msg
             }
         
-        # 2. Validate function signature
+        # 2. COMPILATION STEP - Compile code before judging
+        compile_result = Compiler.compile_code(user_code, language)
+        if not compile_result.get("success", False):
+            return {
+                "evaluation_id": evaluation_id,
+                "problem_id": problem_id,
+                "submitted_code": user_code,
+                "language": language,
+                "total_hidden_tests": len(hidden_tests),
+                "passed_hidden_tests": 0,
+                "test_results": [],
+                "correctness_points": 0.0,
+                "performance_points": 0.0,
+                "quality_points": 0.0,
+                "penalty_points": 0.0,
+                "final_score": 0.0,
+                "verdict": "COMPILATION_ERROR",
+                "max_execution_time": 0.0,
+                "submitted_at": now,
+                "evaluated_at": now,
+                "error": compile_result.get("error"),
+                "error_line": compile_result.get("error_line"),
+                "error_type": compile_result.get("error_type"),
+                "compilation_details": compile_result.get("error_details")
+            }
+        
+        # 4. Validate function signature
         valid, error_msg = SafetyChecker.validate_function_signature(user_code, function_signature)
         if not valid:
             return {
@@ -451,7 +731,7 @@ class JudgingSession:
                 "error": error_msg
             }
         
-        # 3. Execute tests
+        # 5. Execute tests
         exec_result = TestExecutor.execute_tests(
             user_code,
             function_signature,
@@ -482,7 +762,7 @@ class JudgingSession:
                 "error": exec_result["error"]
             }
         
-        # 4. Calculate score
+        # 6. Calculate score
         passed = exec_result["passed"]
         total = exec_result["total"]
         max_time = exec_result["max_time"]
