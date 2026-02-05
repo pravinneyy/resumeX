@@ -234,42 +234,28 @@ def get_recommended_jobs(
         if not required_skills:
             continue
         
-        # Find matching skills with weighted scoring
-        matching_skills = []
-        match_score_raw = 0.0
+        # Find matching skills - count how many REQUIRED skills are covered by candidate
+        matched_requirements = set()  # Track which required skills are satisfied
+        matching_skills = []  # For display: which candidate skills matched
         
         for required_skill in required_skills:
-            best_match = None
-            best_weight = 0.0
-            
             for candidate_skill in candidate_skills:
-                # Exact match (case-insensitive)
-                if candidate_skill == required_skill:
-                    best_match = candidate_skill.title()
-                    best_weight = 1.0
-                    break
-                
-                # Partial match (must be at least 3 chars to avoid false positives)
-                if len(candidate_skill) >= 3 and len(required_skill) >= 3:
-                    if candidate_skill in required_skill or required_skill in candidate_skill:
-                        # Longer overlap = better match
-                        overlap = min(len(candidate_skill), len(required_skill))
-                        weight = 0.3 + (overlap / max(len(candidate_skill), len(required_skill)) * 0.4)
-                        if weight > best_weight:
-                            best_match = candidate_skill.title()
-                            best_weight = weight
-            
-            if best_match:
-                matching_skills.append(best_match)
-                match_score_raw += best_weight
+                # Flexible matching (contains or is contained)
+                if (candidate_skill in required_skill or 
+                    required_skill in candidate_skill or
+                    AIGatekeeper._are_skills_equivalent(candidate_skill, required_skill)):
+                    matched_requirements.add(required_skill)
+                    matching_skills.append(candidate_skill.title())
+                    break  # Move to next required skill once matched
         
-        # Remove duplicates while preserving order
-        seen = set()
-        matching_skills = [x for x in matching_skills if not (x in seen or seen.add(x))]
+        # Remove duplicates from display list
+        matching_skills = list(set(matching_skills))
         
-        # Calculate percentage match (weighted)
+        # Calculate match score based on requirements covered
+        # score = (covered requirements / total requirements) * 100, capped at 100
         if required_skills:
-            match_score = int((match_score_raw / len(required_skills)) * 100)
+            match_score = int((len(matched_requirements) / len(required_skills)) * 100)
+            match_score = min(match_score, 100)  # Cap at 100%
         else:
             match_score = 0
         

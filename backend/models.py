@@ -227,6 +227,10 @@ class AntiCheatLog(Base):
     session_id = Column(String, index=True)  # Links to EvaluationSession.evaluation_id
     evaluation_id = Column(String, ForeignKey("evaluation_sessions.evaluation_id"), nullable=True)
     
+    # Direct link to candidate and job for easier querying
+    candidate_id = Column(String, nullable=True, index=True)
+    job_id = Column(Integer, nullable=True, index=True)
+    
     # Violation type and details
     violation_type = Column(String)  # CAMERA_VIOLATION, TAB_SWITCH, WINDOW_BLUR, COPY_ATTEMPT, PASTE_ATTEMPT, etc.
     reason = Column(String, nullable=True)  # NO_FACE, TAB_HIDDEN, PERMISSION_DENIED, etc.

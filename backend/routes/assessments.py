@@ -1015,6 +1015,8 @@ class ViolationLog(BaseModel):
 
 class AntiCheatLogsRequest(BaseModel):
     session_id: str
+    candidate_id: str = None
+    job_id: int = None
     violations: List[ViolationLog]
 
 
@@ -1024,9 +1026,13 @@ def log_anti_cheat_violations(request: AntiCheatLogsRequest, db: Session = Depen
     Store anti-cheat violation logs from the client.
     These are used for analysis and potential penalties, NOT for blocking.
     """
+    print(f"[📷 ANTI-CHEAT LOG] session={request.session_id}, candidate={request.candidate_id}, job={request.job_id}, violations={len(request.violations)}")
+    
     for violation in request.violations:
         log = AntiCheatLog(
             session_id=request.session_id,
+            candidate_id=request.candidate_id,
+            job_id=request.job_id,
             violation_type=violation.type,
             reason=violation.reason,
             duration=violation.duration,
@@ -1073,7 +1079,7 @@ def get_session_violations(session_id: str, db: Session = Depends(get_db)):
 def get_all_violations(limit: int = 50, db: Session = Depends(get_db)):
     """
     Retrieve latest violations across all sessions.
-    Includes candidate details if linked to an evaluation.
+    Includes candidate details if linked directly or via evaluation.
     """
     violations = db.query(AntiCheatLog).order_by(
         AntiCheatLog.logged_at.desc()
@@ -1083,13 +1089,29 @@ def get_all_violations(limit: int = 50, db: Session = Depends(get_db)):
     for v in violations:
         candidate_name = "Unknown"
         job_title = "Unknown Job"
+        candidate_id_display = v.candidate_id
+        job_id_display = v.job_id
         
-        # Try to fetch candidate info via EvaluationSession
-        if v.evaluation_id:
+        # First, try to use direct candidate_id and job_id
+        if v.candidate_id:
+            candidate = db.query(Candidate).filter(Candidate.id == v.candidate_id).first()
+            if candidate:
+                candidate_name = candidate.name
+        
+        if v.job_id:
+            job = db.query(Job).filter(Job.id == v.job_id).first()
+            if job:
+                job_title = job.title
+        
+        # Fallback: Try to fetch via EvaluationSession if no direct link
+        if candidate_name == "Unknown" and v.evaluation_id:
             eval_sess = db.query(EvaluationSession).filter(
                 EvaluationSession.evaluation_id == v.evaluation_id
             ).first()
             if eval_sess:
+                candidate_id_display = eval_sess.candidate_id
+                job_id_display = eval_sess.job_id
+                
                 candidate = db.query(Candidate).filter(Candidate.id == eval_sess.candidate_id).first()
                 if candidate:
                     candidate_name = candidate.name
@@ -1108,7 +1130,9 @@ def get_all_violations(limit: int = 50, db: Session = Depends(get_db)):
             "timestamp": v.violation_timestamp,
             "logged_at": v.logged_at.isoformat() if v.logged_at else None,
             "candidate_name": candidate_name,
+            "candidate_id": candidate_id_display,
             "job_title": job_title,
+            "job_id": job_id_display,
             "session_id": v.session_id
         })
         

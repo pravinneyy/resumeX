@@ -43,7 +43,7 @@ export default function CodingAssessment() {
   const [sessionId] = useState(() => `session_${Date.now()}`)
   const [cameraLoading, setCameraLoading] = useState(true)
   const [cameraError, setCameraError] = useState<string | null>(null)
-  const antiCheat = useAntiCheat(sessionId, true)
+  const antiCheat = useAntiCheat(sessionId, true, user?.id, jobId ? parseInt(jobId as string) : undefined)
 
   useEffect(() => {
     const fetchAssessment = async () => {
@@ -673,9 +673,21 @@ VERDICT: ${result.verdict}
             </Badge>
           )}
           {antiCheat.faceDetectionActive && (
-            <Badge variant="outline" className="gap-1 text-green-500 border-green-500/50">
-              <Users className="w-3 h-3" /> Face Detected
-            </Badge>
+            <>
+              {antiCheat.currentFaceCount === 0 ? (
+                <Badge variant="destructive" className="gap-1">
+                  <Users className="w-3 h-3" /> No Face
+                </Badge>
+              ) : antiCheat.currentFaceCount === 1 ? (
+                <Badge variant="outline" className="gap-1 text-green-500 border-green-500/50">
+                  <Users className="w-3 h-3" /> 1 Face
+                </Badge>
+              ) : (
+                <Badge variant="destructive" className="gap-1 animate-pulse">
+                  <Users className="w-3 h-3" /> {antiCheat.currentFaceCount} Faces Detected!
+                </Badge>
+              )}
+            </>
           )}
         </div>
         <div className="flex gap-2">
