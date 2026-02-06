@@ -1,5 +1,6 @@
 "use client"
 
+import { useAuth } from "@clerk/nextjs"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -24,13 +25,14 @@ interface Application {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export default function ApplicationsPage() {
+    const { getToken } = useAuth()
     const [applications, setApplications] = useState<Application[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         async function fetchApplications() {
             try {
-                const token = localStorage.getItem('token')
+                const token = await getToken()
                 const response = await fetch(`${API_URL}/api/candidates/me/applications`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -49,7 +51,7 @@ export default function ApplicationsPage() {
         }
 
         fetchApplications()
-    }, [])
+    }, [getToken])
 
     const getStatusIcon = (status: string) => {
         switch (status.toLowerCase()) {
