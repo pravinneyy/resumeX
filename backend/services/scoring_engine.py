@@ -870,6 +870,22 @@ class ScoringEngine:
                 "performance_score": coding_eval.performance_points / 15.0 if coding_eval.performance_points else 1.0,
                 "quality_penalty": coding_eval.penalty_points / 10.0 if coding_eval.penalty_points else 0.0
             }
+        else:
+            # Fallback: Check for legacy/simple AssessmentSubmission
+            from models import AssessmentSubmission
+            submission = db.query(AssessmentSubmission).filter(
+                AssessmentSubmission.job_id == job_id,
+                AssessmentSubmission.candidate_id == candidate_id
+            ).order_by(AssessmentSubmission.submitted_at.desc()).first()
+            
+            if submission:
+                coding_data = {
+                    "final_score": float(submission.score) if submission.score is not None else 0.0,
+                    "passed_tests": 1, # Placeholder to ensure handled as "evaluated"
+                    "total_tests": 1,
+                    "performance_score": 1.0,
+                    "quality_penalty": 0.0
+                }
         
         # 3. Fetch psychometric submission data
         psych_submission = db.query(PsychometricSubmission).filter(

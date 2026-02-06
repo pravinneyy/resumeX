@@ -247,7 +247,7 @@ def get_job_applications(
                 "ai_reasoning": analysis["ai_reasoning"],
                 "ai_reasoning_full": app.notes,
                 "status": app.status,
-                "score": app.final_grade or 0,
+                "score": final_score_record.final_score if final_score_record else (app.final_grade or 0),
                 # Individual assessment scores (all 0-100)
                 "psychometric_score": psychometric_score,
                 "technical_score": technical_score,

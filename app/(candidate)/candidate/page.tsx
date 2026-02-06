@@ -147,7 +147,7 @@ export default function CandidateDashboard() {
             )}
 
             {/* 3. STATS GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-muted-foreground">Total Applications</CardTitle>
@@ -167,6 +167,19 @@ export default function CandidateDashboard() {
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.assessments}</div>
                         <p className="text-xs text-muted-foreground mt-2">Keep your skills sharp!</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-200/20">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-foreground">AI Resume Builder</CardTitle>
+                        <Sparkles className="w-4 h-4 text-indigo-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-sm text-muted-foreground mb-3">Optimize your resume for 90%+ match scores.</div>
+                        <Button size="sm" variant="secondary" className="w-full text-xs" onClick={() => router.push("/candidate/ai-resume")}>
+                            Build Now <ArrowRight className="w-3 h-3 ml-1" />
+                        </Button>
                     </CardContent>
                 </Card>
             </div>

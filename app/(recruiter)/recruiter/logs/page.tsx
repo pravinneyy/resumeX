@@ -94,6 +94,7 @@ export default function LogsPage() {
     const fetchLogs = async () => {
         setLoading(true)
         try {
+            // URL already matches backend default
             const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/all-violations?limit=100")
             if (res.ok) {
                 const data = await res.json()
@@ -103,6 +104,21 @@ export default function LogsPage() {
             console.error("Failed to fetch logs:", error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const clearLogs = async () => {
+        if (!confirm("Are you sure you want to delete all security logs? This cannot be undone.")) return
+
+        try {
+            const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/clear-logs", {
+                method: "DELETE"
+            })
+            if (res.ok) {
+                setViolations([])
+            }
+        } catch (error) {
+            console.error("Failed to clear logs:", error)
         }
     }
 
@@ -132,10 +148,16 @@ export default function LogsPage() {
                         Monitor active assessments and review flagged suspicious activities.
                     </p>
                 </div>
-                <Button onClick={fetchLogs} variant="outline" size="sm">
-                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={clearLogs} variant="destructive" size="sm">
+                        <UserX className="w-4 h-4 mr-2" />
+                        Clear Logs
+                    </Button>
+                    <Button onClick={fetchLogs} variant="outline" size="sm">
+                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </Button>
+                </div>
             </div>
 
             <Card>
