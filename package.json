@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "test:supabase": "node scripts/test-supabase.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.7",
