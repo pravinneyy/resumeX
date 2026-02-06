@@ -57,3 +57,5 @@ ngrok
 
 # Logs
 *.log
+_pycache__/
+.venv/

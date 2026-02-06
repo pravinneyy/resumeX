@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Industry Resume</title>
+  <style>
+    @page {
+      margin: 0.5in;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      font-size: 11pt;
+      margin: 0.5in;
+      line-height: 1.2;
+      color: #000;
+    }
+
+    h1 {
+      font-size: 22pt;
+      font-weight: bold;
+      margin: 0 0 4pt 0;
+    }
+
+    h2 {
+      font-size: 11pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1pt;
+      border-bottom: 2px solid #333;
+      margin: 12pt 0 6pt 0;
+      padding-bottom: 2pt;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+      color: #333;
+      margin-bottom: 8pt;
+    }
+
+    p {
+      margin: 0 0 6pt 0;
+    }
+
+    .entry {
+      margin-bottom: 8pt;
+    }
+
+    .entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .entry-title {
+      font-weight: bold;
+    }
+
+    .entry-meta {
+      font-size: 10pt;
+      color: #666;
+    }
+
+    .entry-subtitle {
+      font-style: italic;
+      font-size: 10pt;
+    }
+
+    .entry-description {
+      font-size: 10pt;
+      margin-top: 2pt;
+    }
+
+    ul {
+      margin: 0 0 0 16pt;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 2pt;
+      font-size: 10pt;
+    }
+
+    .skills-inline {
+      font-size: 10pt;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>{{name}}</h1>
+  <div class="header">
+    <div>{{email}} | {{location}}</div>
+    <div>{{github}} | {{linkedin}}</div>
+  </div>
+
+  <h2>Professional Summary</h2>
+  <p>{{summary}}</p>
+
+  <h2>Projects</h2>
+  {{projects}}
+
+  {{research_section}}
+
+  <h2>Education</h2>
+  {{education}}
+
+  <h2>Skills</h2>
+  <p class="skills-inline">{{skills}}</p>
+
+  {{work_experience_section}}
+
+  {{hobbies_section}}
+
+  {{references_section}}
+
+</body>
+
+</html>

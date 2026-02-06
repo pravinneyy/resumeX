@@ -16,7 +16,8 @@ const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/candidate" },
   { label: "Jobs", icon: Briefcase, href: "/candidate/jobs" },
   { label: "Applications", icon: FileText, href: "/candidate/applications" }, // Application status
-  { label: "Interviews", icon: Code2, href: "/candidate/interviews" }, // Was Compare/Practice
+  { label: "Interviews", icon: Code2, href: "/candidate/interviews" },
+  { label: "AI Resume", icon: Sparkles, href: "/candidate/ai-resume" },
 ]
 
 export function CandidateSidebar({ collapsed, onToggle }: SidebarProps) {
