@@ -25,5 +25,37 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+.eggs/
+*.egg-info/
+*.egg
+
+# Local tools
+ngrok.exe
+ngrok
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+_pycache__/
+.venv/

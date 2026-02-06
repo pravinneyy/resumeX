@@ -323,6 +323,29 @@ export default function PsychometricPage() {
           </p>
         </div>
 
+        {/* Empty State - No Questions */}
+        {questions.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+              <BrainCircuit className="w-16 h-16 text-muted-foreground/50" />
+              <div>
+                <h3 className="font-semibold text-lg">No Psychometric Questions Posted</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  The recruiter hasn't added psychometric questions for this role yet.
+                </p>
+              </div>
+              <Button
+                size="lg"
+                onClick={() => router.push(`/candidate/interviews/${jobId}/technical-text`)}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                Skip to Technical Questions
+                <BrainCircuit className="w-4 h-4 ml-2" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="space-y-6">
           {questions.map((q, idx) => (
             <Card key={q.id}>

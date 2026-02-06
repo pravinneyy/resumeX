@@ -217,54 +217,16 @@ def clear_table(
     if table_name not in TABLE_MODEL_MAP:
         raise HTTPException(status_code=404, detail=f"Table {table_name} not found")
     
-    # Define dependencies: which tables must be cleared before others
-    table_dependencies = {
-        "recruiters": ["jobs", "applications", "job_assessments", "assessment_submissions", 
-                       "psychometric_submissions", "evaluation_sessions", "anti_cheat_logs",
-                       "sphere_assessments", "sphere_technical_submissions", 
-                       "candidate_assessment_submissions"],
-        "candidates": ["applications", "assessment_submissions", "psychometric_submissions", 
-                       "evaluation_sessions", "anti_cheat_logs", "candidate_assessment_submissions"],
-        "jobs": ["applications", "job_assessments", "assessment_submissions", 
-                 "psychometric_submissions", "evaluation_sessions", "anti_cheat_logs",
-                 "sphere_assessments", "sphere_technical_submissions", 
-                 "candidate_assessment_submissions"],
-        "applications": [],
-        "job_assessments": [],
-        "problems": ["evaluation_sessions", "anti_cheat_logs"],
-        "evaluation_sessions": ["anti_cheat_logs"],
-        "assessment_submissions": [],
-        "psychometric_submissions": [],
-        "anti_cheat_logs": []
-    }
     
     try:
-        deleted_counts = {}
-        
-        # Get list of dependent tables that need to be cleared first
-        dependent_tables = table_dependencies.get(table_name, [])
-        
-        # Clear dependent tables first (in reverse dependency order)
-        for dep_table in reversed(dependent_tables):
-            try:
-                result = db.execute(text(f"DELETE FROM {dep_table}"))
-                db.commit()  # Commit each successful deletion
-                deleted_counts[dep_table] = result.rowcount
-            except Exception as e:
-                db.rollback()  # Rollback failed transaction
-                # If dependent table doesn't exist or has no data, that's okay
-                deleted_counts[dep_table] = f"Skipped: {str(e)[:50]}"
-        
-        # Now clear the target table
-        result = db.execute(text(f"DELETE FROM {table_name}"))
-        deleted_counts[table_name] = result.rowcount
-        
+        # Use TRUNCATE CASCADE - PostgreSQL automatically handles all dependencies
+        # This avoids manual dependency management and FK constraint issues
+        db.execute(text(f"TRUNCATE TABLE {table_name} CASCADE"))
         db.commit()
         
         return {
-            "message": f"Table {table_name} cleared (and dependencies)",
-            "deleted_count": result.rowcount,
-            "all_deletions": deleted_counts
+            "message": f"Table {table_name} cleared successfully (CASCADE applied)",
+            "status": "success"
         }
     except Exception as e:
         db.rollback()

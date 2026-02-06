@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Creative Resume</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 40px;
+            color: #1a1a2e;
+            background: linear-gradient(135deg, #f8f9ff 0%, #fff 100%);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 16px;
+            margin-bottom: 32px;
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin: 0 0 12px 0;
+        }
+
+        .tagline {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .contact-bar {
+            display: flex;
+            gap: 20px;
+            margin-top: 16px;
+            font-size: 13px;
+        }
+
+        .contact-bar a {
+            color: white;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+            margin-top: 32px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h2::before {
+            content: '→';
+            font-size: 14px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid #667eea;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .card-meta {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .card-description {
+            font-size: 13px;
+            color: #444;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .skill-badge {
+            background: linear-gradient(135deg, #667eea20 0%, #764ba220 100%);
+            color: #667eea;
+            padding: 8px 16px;
+            border-radius: 24px;
+            font-size: 12px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .references-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>{{name}}</h1>
+            <div class="tagline">{{summary}}</div>
+            <div class="contact-bar">
+                <span>📧 {{email}}</span>
+                <span>📍 {{location}}</span>
+                <a href="{{github}}">🔗 GitHub</a>
+                <a href="{{linkedin}}">💼 LinkedIn</a>
+            </div>
+        </div>
+
+        <h2>Education</h2>
+        {{education}}
+
+        {{research_section}}
+
+        <h2>Projects</h2>
+        {{projects}}
+
+        <h2>Skills & Technologies</h2>
+        <div class="skills-grid">
+            {{skills}}
+        </div>
+
+        {{work_experience_section}}
+
+        {{hobbies_section}}
+
+        {{references_section}}
+    </div>
+
+</body>
+
+</html>

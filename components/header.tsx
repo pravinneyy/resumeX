@@ -54,7 +54,15 @@ export function Header() {
   )
 
   return (
-    <header className={cn("fixed top-0 left-0 right-0 z-50 transition-all duration-500", isScrolled ? "bg-[#2d1010]/80 backdrop-blur-md border-b border-[#5a3030]/30" : "bg-transparent")}>
+    // Updated header className:
+    // 1. Removed the conditional background check.
+    // 2. Added permanent maroon transparent background: bg-[#2d1010]/70
+    // 3. Added permanent blur: backdrop-blur-md
+    // 4. Kept the bottom border conditional on scroll.
+    <header className={cn(
+      "fixed top-0 left-0 right-0 z-50 transition-all duration-500 bg-[#2d1010]/70 backdrop-blur-md",
+      isScrolled ? "border-b border-[#5a3030]/30" : ""
+    )}>
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <Link href="/" className="text-2xl font-bold text-[#ffb3b3] tracking-tighter">
           Resume<span className="text-white">X</span>
@@ -104,7 +112,8 @@ export function Header() {
 
       {/* Mobile Menu */}
       <div className={cn("md:hidden overflow-hidden transition-all duration-500", isMobileMenuOpen ? "max-h-80 opacity-100" : "max-h-0 opacity-0")}>
-        <div className="bg-[#1a0505]/95 px-6 py-6 border-b border-[#5a3030]/30 space-y-4">
+        {/* Updated mobile menu background to match the maroon theme better */}
+        <div className="bg-[#2d1010]/95 backdrop-blur-md px-6 py-6 border-b border-[#5a3030]/30 space-y-4">
           <ClerkLoaded>
             <SignedIn>
               <Link href={dashboardHref} className="w-full block">
@@ -113,16 +122,16 @@ export function Header() {
             </SignedIn>
             <SignedOut>
               <Link href="/auth/work-with-us" className="w-full block">
-                <Button variant="outline" className="w-full border-[#5a3030] text-[#ff8080]">
+                <Button variant="outline" className="w-full border-[#5a3030] text-[#ff8080] hover:bg-[#4a1a1a]">
                   <Briefcase className="w-4 h-4 mr-2 inline" />
                   Recruiter Portal
                 </Button>
               </Link>
               <Link href="/auth/signin" className="w-full block">
-                <Button variant="ghost" className="w-full text-[#d0b8b8]">Sign In</Button>
+                <Button variant="ghost" className="w-full text-[#d0b8b8] hover:bg-[#4a1a1a] hover:text-white">Sign In</Button>
               </Link>
               <Link href="/auth/signup" className="w-full block">
-                <Button className="w-full bg-[#ff8080] text-[#1a0808] font-bold">Join as Candidate</Button>
+                <Button className="w-full bg-[#ff8080] text-[#1a0808] font-bold hover:bg-[#ff9999]">Join as Candidate</Button>
               </Link>
             </SignedOut>
           </ClerkLoaded>

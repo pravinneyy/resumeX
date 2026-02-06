@@ -6,7 +6,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "test:supabase": "node scripts/test-supabase.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.7",
@@ -48,6 +49,7 @@
     "cmdk": "1.0.4",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
+    "framer-motion": "^12.31.0",
     "face-api.js": "^0.22.2",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",

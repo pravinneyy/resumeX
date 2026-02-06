@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db import get_db
-from models import Job, Application, Recruiter
+from models import Job, Application, Recruiter, CandidateFinalScore
 from pydantic import BaseModel
 from typing import Optional
 import json
@@ -76,32 +76,45 @@ def get_my_jobs(
         "salary": j.salary_range or "Competitive",
         "type": "Full-time",
         "company": j.recruiter.company_name if j.recruiter else "Unknown Company",
-        "applicant_count": len(j.applications)
+        "applicant_count": len(j.applications),
+        "recruited_count": len([a for a in j.applications if a.status in ["Hired", "Offer Accepted", "Recruited"]])
     } for j in jobs]
 
 # --- CANDIDATE FEED (All Jobs) ---
 @router.get("/jobs/feed")
-def get_all_jobs(
+def get_public_job_feed(
     db: Session = Depends(get_db),
-    current_user_id: str = Depends(get_current_user) 
+    current_user_id: str = Depends(get_current_user)  
 ):
-    """
-    Fetch ALL open jobs for candidates to browse.
-    """
-    jobs = db.query(Job).all()
+    """Get ALL jobs for the candidate job feed with recruiter info"""
+    # Join with Recruiter to get recruiter name
+    jobs = db.query(Job).join(Recruiter, Job.recruiter_id == Recruiter.id).all()
     
-    return [{
-        "id": j.id,
-        "title": j.title,
-        "description": j.description,
-        "location": j.location or "Remote",
-        "salary": j.salary_range or "Competitive",
-        "type": "Full-time",
-        "skills": j.requirements,
-        "company": j.recruiter.company_name if j.recruiter else "Unknown Company",
-        "recruiter_name": j.recruiter.email if j.recruiter else "Unknown Recruiter",
-        "recruiter_id": j.recruiter_id
-    } for j in jobs]
+    # Format response with recruiter info
+    jobs_list = []
+    for job in jobs:
+        # The join already loaded the recruiter, so access it directly
+        recruiter = job.recruiter
+        
+        # Extract name from Clerk or use company name
+        recruiter_name = recruiter.company_name if recruiter else "Recruiter"
+        recruiter_email = recruiter.email if recruiter else ""
+        
+        jobs_list.append({
+            "id": job.id,
+            "title": job.title,
+            "company": recruiter.company_name if recruiter else "Unknown Company", # Assuming company name is from recruiter
+            "location": job.location,
+            "salary": job.salary_range,
+            "type": "Full-time", # Assuming a default type as it's not in Job model
+            "description": job.description,
+            "requirements": job.requirements,
+            "created_at": job.created_at.isoformat() if job.created_at else None, # Assuming created_at exists and is datetime
+            "recruiter_name": recruiter_name,
+            "recruiter_email": recruiter_email
+        })
+    
+    return jobs_list
 
 # --- HELPER & APPLICATION ROUTES ---
 
@@ -198,6 +211,26 @@ def get_job_applications(
         result = []
         for app in apps:
             analysis = parse_enhanced_notes(app.notes)
+            
+            # Fetch individual assessment scores from CandidateFinalScore
+            final_score_record = db.query(CandidateFinalScore).filter(
+                CandidateFinalScore.job_id == job_id,
+                CandidateFinalScore.candidate_id == app.candidate_id
+            ).first()
+            
+            # Extract normalized individual scores (all 0-100)
+            psychometric_score = None
+            technical_score = None
+            coding_score = None
+            behavioral_score = None
+            
+            if final_score_record:
+                # All scores are now normalized to 0-100
+                psychometric_score = final_score_record.psychometric_score
+                technical_score = final_score_record.technical_score
+                coding_score = final_score_record.coding_score
+                behavioral_score = final_score_record.behavioral_score
+            
             result.append({
                 "id": app.id,
                 "candidate_id": app.candidate_id,
@@ -214,7 +247,12 @@ def get_job_applications(
                 "ai_reasoning": analysis["ai_reasoning"],
                 "ai_reasoning_full": app.notes,
                 "status": app.status,
-                "score": app.final_grade or 0,
+                "score": final_score_record.final_score if final_score_record else (app.final_grade or 0),
+                # Individual assessment scores (all 0-100)
+                "psychometric_score": psychometric_score,
+                "technical_score": technical_score,
+                "coding_score": coding_score,
+                "behavioral_score": behavioral_score,
                 "resume_url": (
                     f"{SUPABASE_URL}/storage/v1/object/public/resumes/{app.candidate.resume_url}"
                     if app.candidate and app.candidate.resume_url and not app.candidate.resume_url.startswith("http")
@@ -224,4 +262,59 @@ def get_job_applications(
         return result
     except Exception as e:
         print(f"Error fetching applications: {e}")
+        return []
+
+# --- RECRUITER LOGS ---
+@router.get("/logs/activity")
+def get_recruiter_logs(
+    db: Session = Depends(get_db),
+    current_user_id: str = Depends(get_current_user)
+):
+    """
+    Get combined activity log for recruiter:
+    - New Applications
+    - Status Changes (approximated by current status if recent) - difficult without history table
+    - Anti-Cheat Violations
+    """
+    try:
+        # 1. Get Recruiter Jobs
+        jobs = db.query(Job).filter(Job.recruiter_id == current_user_id).all()
+        job_ids = [j.id for j in jobs]
+        
+        if not job_ids: return []
+
+        logs = []
+
+        # 2. Get Recent Applications (Last 50)
+        recent_apps = db.query(Application).filter(Application.job_id.in_(job_ids))\
+            .order_by(Application.applied_at.desc()).limit(50).all()
+            
+        for app in recent_apps:
+            logs.append({
+                "id": f"app_{app.id}",
+                "type": "APPLICATION",
+                "title": "New Application",
+                "message": f"{app.candidate.name if app.candidate else 'Someone'} applied for {app.job.title}",
+                "job_title": app.job.title,
+                "candidate_name": app.candidate.name if app.candidate else "Unknown",
+                "timestamp": app.applied_at.isoformat() if app.applied_at else None,
+                "severity": "info"
+            })
+            
+            # If status is not just Applied, maybe show that too (though we don't know WHEN it changed)
+            if app.status not in ["Applied", "Pending"]:
+                logs.append({
+                    "id": f"status_{app.id}",
+                    "type": "STATUS_CHANGE",
+                    "title": f"Candidate {app.status}",
+                    "message": f"{app.candidate.name if app.candidate else 'Unknown'} is marked as {app.status}",
+                    "job_title": app.job.title,
+                    "candidate_name": app.candidate.name if app.candidate else "Unknown",
+                    "timestamp": app.applied_at.isoformat(), # Using applied_at as proxy since we don't have updated_at
+                    "severity": "success" if app.status in ["Hired", "Offer Accepted"] else "default"
+                })
+
+        return sorted(logs, key=lambda x: x['timestamp'] or "", reverse=True)
+    except Exception as e:
+        print(f"Error fetching logs: {e}")
         return []

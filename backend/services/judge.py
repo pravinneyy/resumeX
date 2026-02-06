@@ -794,3 +794,127 @@ class JudgingSession:
             "evaluated_at": now,
             "error": None
         }
+    
+    @staticmethod
+    def evaluate_all_questions(
+        submissions: List[Dict[str, Any]],
+        problems_data: Dict[str, Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Evaluate multiple questions and calculate weighted average score.
+        
+        Args:
+            submissions: List of {problem_id, code, language}
+            problems_data: Dict mapping problem_id to {function_signature, hidden_tests, time_limit}
+        
+        Returns:
+            {
+                "evaluation_id": str,
+                "question_results": [...],
+                "individual_scores": [float, ...],
+                "total_score": float (0-100),
+                "verdict": str,
+                "evaluated_at": str
+            }
+        """
+        evaluation_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat()
+        
+        question_results = []
+        individual_scores = []
+        
+        for i, submission in enumerate(submissions):
+            problem_id = submission.get("problem_id")
+            code = submission.get("code", "")
+            language = submission.get("language", "python")
+            
+            # Get problem data
+            problem = problems_data.get(problem_id, {})
+            function_signature = problem.get("function_signature", "def solution():")
+            hidden_tests = problem.get("hidden_tests", [])
+            time_limit = problem.get("time_limit", 1.0)
+            
+            if not code or code.strip() == "":
+                # No code submitted for this question
+                result = {
+                    "question_index": i,
+                    "problem_id": problem_id,
+                    "score": 0.0,
+                    "verdict": "NOT_SUBMITTED",
+                    "error": "No code submitted for this question"
+                }
+                question_results.append(result)
+                individual_scores.append(0.0)
+                continue
+            
+            # Judge this submission
+            try:
+                judge_result = JudgingSession.judge_submission(
+                    user_code=code,
+                    problem_id=problem_id,
+                    function_signature=function_signature,
+                    hidden_tests=hidden_tests,
+                    time_limit_sec=time_limit,
+                    language=language
+                )
+                
+                result = {
+                    "question_index": i,
+                    "problem_id": problem_id,
+                    "evaluation_id": judge_result.get("evaluation_id"),
+                    "score": judge_result.get("final_score", 0.0),
+                    "verdict": judge_result.get("verdict"),
+                    "passed_tests": judge_result.get("passed_hidden_tests", 0),
+                    "total_tests": judge_result.get("total_hidden_tests", 0),
+                    "correctness_points": judge_result.get("correctness_points", 0.0),
+                    "performance_points": judge_result.get("performance_points", 0.0),
+                    "quality_points": judge_result.get("quality_points", 0.0),
+                    "error": judge_result.get("error")
+                }
+                question_results.append(result)
+                individual_scores.append(judge_result.get("final_score", 0.0))
+                
+            except Exception as e:
+                result = {
+                    "question_index": i,
+                    "problem_id": problem_id,
+                    "score": 0.0,
+                    "verdict": "JUDGE_ERROR",
+                    "error": str(e)
+                }
+                question_results.append(result)
+                individual_scores.append(0.0)
+        
+        # Calculate weighted average (equal weight for each question)
+        num_questions = len(submissions)
+        if num_questions > 0:
+            total_score = sum(individual_scores) / num_questions
+        else:
+            total_score = 0.0
+        
+        # Round to 2 decimal places
+        total_score = round(total_score, 2)
+        
+        # Determine overall verdict
+        if total_score >= 80:
+            overall_verdict = "ACCEPTED"
+        elif total_score >= 50:
+            overall_verdict = "PARTIAL_ACCEPTED"
+        else:
+            overall_verdict = "FAILED"
+        
+        # Check if any malpractice
+        malpractice_count = sum(1 for r in question_results if "MALPRACTICE" in str(r.get("verdict", "")))
+        if malpractice_count > 0:
+            overall_verdict = "MALPRACTICE"
+        
+        return {
+            "evaluation_id": evaluation_id,
+            "question_results": question_results,
+            "individual_scores": [round(s, 2) for s in individual_scores],
+            "num_questions": num_questions,
+            "total_score": total_score,
+            "verdict": overall_verdict,
+            "evaluated_at": now
+        }
+

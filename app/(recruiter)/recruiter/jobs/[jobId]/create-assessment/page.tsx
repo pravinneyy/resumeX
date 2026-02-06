@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { ArrowLeft, Plus, Trash2, Save, Clock, Code2, BrainCircuit, Loader2, MessageSquare } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Save, Clock, Code2, BrainCircuit, Loader2, MessageSquare, CheckCircle } from "lucide-react"
+import WeightConfig from "@/components/recruiter/WeightConfig"
 
 // If you have a Checkbox component, import it. Otherwise, we use standard input below.
 import { Checkbox } from "@/components/ui/checkbox"
@@ -44,6 +45,8 @@ export default function CreateAssessmentPage() {
   const router = useRouter()
   const { getToken } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [assessmentExists, setAssessmentExists] = useState(false)
+  const [checkingAssessment, setCheckingAssessment] = useState(true)
 
   // Exam Meta Data
   const [examTitle, setExamTitle] = useState("")
@@ -59,6 +62,26 @@ export default function CreateAssessmentPage() {
   const [technicalQuestionsBank, setTechnicalQuestionsBank] = useState<{ [section: string]: any[] }>({})
   const [selectedTechnicalQuestionIds, setSelectedTechnicalQuestionIds] = useState<number[]>([])
   const [technicalQuestionsLoading, setTechnicalQuestionsLoading] = useState(false)
+
+  // Check if assessment already exists
+  useEffect(() => {
+    const checkAssessment = async () => {
+      try {
+        const token = await getToken()
+        const res = await fetch(`http://127.0.0.1:8000/api/assessments/${jobId}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        })
+        if (res.ok) {
+          setAssessmentExists(true)
+        }
+      } catch (e) {
+        console.error("Error checking assessment:", e)
+      } finally {
+        setCheckingAssessment(false)
+      }
+    }
+    checkAssessment()
+  }, [jobId, getToken])
 
   // Fetch psychometric bank
   useEffect(() => {
@@ -291,18 +314,75 @@ export default function CreateAssessmentPage() {
       }
 
       alert("Assessment & Culture Preferences Saved!")
-      console.log("Redirecting to job settings...")
+      console.log("Assessment created successfully")
 
-      // Add slight delay to ensure data is committed before redirect
-      setTimeout(() => {
-        router.push(`/recruiter/jobs/${jobId}`)
-      }, 200)
+      // Set assessment exists to show the weight configuration
+      setAssessmentExists(true)
+      setLoading(false)
 
     } catch (error) {
       console.error("Publish Error:", error)
       alert(`Error publishing assessment: ${error instanceof Error ? error.message : String(error)}`)
       setLoading(false)
     }
+  }
+
+  if (checkingAssessment) {
+    return (
+      <div className="max-w-5xl mx-auto p-8 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (assessmentExists) {
+    return (
+      <div className="max-w-5xl mx-auto p-8 space-y-8 animate-fade-in">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" onClick={() => router.back()}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <CheckCircle className="w-8 h-8 text-green-500" />
+                Assessment Created
+              </h1>
+              <p className="text-muted-foreground">Assessment for Job ID: {jobId} has been created successfully</p>
+            </div>
+          </div>
+          <Button onClick={() => router.push(`/recruiter/jobs/${jobId}`)}>
+            View Job
+          </Button>
+        </div>
+
+        {/* Success Message */}
+        <Card className="border-green-500/50 bg-green-500/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="w-5 h-5" />
+              Assessment Configuration Complete
+            </CardTitle>
+            <CardDescription>
+              Your assessment has been published and is ready for candidates. You can configure the scoring weights below.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        {/* Weight Configuration */}
+        <WeightConfig jobId={Number(jobId)} />
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => router.back()}>
+            Back
+          </Button>
+          <Button onClick={() => router.push(`/recruiter/jobs/${jobId}`)}>
+            Go to Job Details
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

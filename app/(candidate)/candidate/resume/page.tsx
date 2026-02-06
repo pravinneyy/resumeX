@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useUser, useAuth } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -17,7 +17,49 @@ export default function ResumePage() {
     const { getToken } = useAuth()
     const router = useRouter()
     const [isUploading, setIsUploading] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
     const [parsedData, setParsedData] = useState<any>(null)
+
+    // Fetch existing resume data on page load
+    useEffect(() => {
+        const fetchExistingData = async () => {
+            if (!user) return
+
+            try {
+                const token = await getToken()
+
+                // Fetch candidate profile
+                const profileRes = await fetch(`http://127.0.0.1:8000/api/candidates/${user.id}/profile`, {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                })
+                const profileData = await profileRes.json()
+
+                if (profileData.has_resume) {
+                    // Fetch job recommendations
+                    const jobsRes = await fetch(`http://127.0.0.1:8000/api/candidates/${user.id}/recommended-jobs`, {
+                        headers: {
+                            "Authorization": `Bearer ${token}`
+                        }
+                    })
+                    const jobsData = await jobsRes.json()
+
+                    // Set existing data
+                    setParsedData({
+                        ...profileData.data,
+                        recommended_jobs: jobsData.recommended_jobs || []
+                    })
+                }
+            } catch (error) {
+                console.error("Failed to fetch existing resume data:", error)
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchExistingData()
+    }, [user, getToken])
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -79,8 +121,18 @@ export default function ResumePage() {
                 <p className="text-muted-foreground">Upload your CV to unlock personalized job matches.</p>
             </div>
 
+            {/* LOADING STATE */}
+            {isLoading && (
+                <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+                        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                        <p className="text-muted-foreground">Loading your profile...</p>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* UPLOAD SECTION */}
-            {!parsedData && (
+            {!parsedData && !isLoading && (
                 <Card className={`border-dashed border-2 border-primary/20 bg-secondary/5 hover:bg-secondary/10 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
                     <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
                         <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">

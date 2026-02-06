@@ -1,27 +1,83 @@
 import os
-import base64
 import json
 import re
 import time
 import requests
-from huggingface_hub import InferenceClient
 import pdfplumber
 from io import BytesIO
-from typing import Dict, List, Optional
+from typing import Dict, List, Set
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize Hugging Face InferenceClient
+# Initialize Hugging Face token
 HF_TOKEN = os.getenv("HF_TOKEN")
-client = InferenceClient(token=HF_TOKEN) if HF_TOKEN else None
 
 
 class AIGatekeeper:
     """
-    Intelligent resume screening system using Hugging Face LLMs
-    Acts as gatekeeper to automatically sort candidates
+    Production-ready resume screening system.
+    Uses AI to analyze resumes against job requirements and make hiring decisions.
     """
+    
+    # ===== MASTER SKILL DATABASE =====
+    # Only real technical skills - no random text detection
+    TECHNICAL_SKILLS = {
+        # Programming Languages
+        "Python", "JavaScript", "TypeScript", "Java", "C++", "C#", "C", "Go", "Golang",
+        "Rust", "Ruby", "PHP", "Swift", "Kotlin", "Scala", "R", "MATLAB", "Perl",
+        "Objective-C", "Dart", "Lua", "Haskell", "Elixir", "Clojure", "F#",
+        
+        # Web Frontend
+        "React", "React.js", "ReactJS", "Vue", "Vue.js", "VueJS", "Angular", "AngularJS",
+        "Next.js", "NextJS", "Nuxt.js", "Svelte", "HTML", "HTML5", "CSS", "CSS3",
+        "SCSS", "SASS", "Less", "Tailwind", "TailwindCSS", "Bootstrap", "Material UI",
+        "jQuery", "Redux", "Zustand", "MobX", "Webpack", "Vite", "Babel",
+        
+        # Web Backend
+        "Node.js", "NodeJS", "Express", "Express.js", "Django", "Flask", "FastAPI",
+        "Spring", "Spring Boot", "ASP.NET", ".NET", ".NET Core", "Ruby on Rails",
+        "Rails", "Laravel", "Symfony", "NestJS", "Koa", "Hapi", "Gin", "Echo",
+        
+        # Databases
+        "SQL", "MySQL", "PostgreSQL", "Postgres", "MongoDB", "Redis", "Elasticsearch",
+        "SQLite", "Oracle", "SQL Server", "MSSQL", "MariaDB", "Cassandra", "DynamoDB",
+        "Firebase", "Firestore", "Supabase", "Neo4j", "CouchDB", "InfluxDB",
+        
+        # Cloud & DevOps
+        "AWS", "Amazon Web Services", "Azure", "Microsoft Azure", "GCP", "Google Cloud",
+        "Docker", "Kubernetes", "K8s", "Jenkins", "CI/CD", "GitHub Actions", "GitLab CI",
+        "Terraform", "Ansible", "Chef", "Puppet", "CloudFormation", "Helm",
+        "Linux", "Ubuntu", "CentOS", "Nginx", "Apache", "Heroku", "Vercel", "Netlify",
+        
+        # Data Science & ML
+        "Machine Learning", "ML", "Deep Learning", "TensorFlow", "PyTorch", "Keras",
+        "Scikit-learn", "Pandas", "NumPy", "Matplotlib", "Seaborn", "Jupyter",
+        "Data Science", "Data Analysis", "Data Analytics", "Big Data", "Spark",
+        "Hadoop", "NLP", "Computer Vision", "OpenCV", "AI", "Artificial Intelligence",
+        
+        # Mobile
+        "Android", "iOS", "React Native", "Flutter", "Xamarin", "Ionic", "SwiftUI",
+        "Jetpack Compose", "Mobile Development",
+        
+        # APIs & Protocols
+        "REST", "RESTful", "REST API", "GraphQL", "gRPC", "WebSocket", "WebSockets",
+        "SOAP", "API Development", "Microservices",
+        
+        # Version Control & Tools
+        "Git", "GitHub", "GitLab", "Bitbucket", "SVN", "Mercurial",
+        "JIRA", "Confluence", "Trello", "Agile", "Scrum", "Kanban",
+        
+        # Testing
+        "Unit Testing", "Jest", "Mocha", "Chai", "Pytest", "JUnit", "Selenium",
+        "Cypress", "Playwright", "TestNG", "TDD", "BDD", "QA", "Quality Assurance",
+        
+        # Other Technologies
+        "Blockchain", "Ethereum", "Solidity", "Web3", "Smart Contracts",
+        "RabbitMQ", "Kafka", "Apache Kafka", "Message Queue", "Celery",
+        "OAuth", "JWT", "Authentication", "Authorization", "Security",
+        "System Design", "Software Architecture", "Design Patterns",
+    }
     
     @staticmethod
     def analyze_resume(
@@ -32,27 +88,19 @@ class AIGatekeeper:
         minimum_experience: int = 0
     ) -> Dict:
         """
-        Main gatekeeper function - analyzes resume against job requirements
+        Main entry point - Analyzes resume against job requirements.
         
-        Returns:
-            {
-                "category": "High Match" | "Potential" | "Reject",
-                "match_score": 0-100,
-                "personal_details": {...},
-                "skills": [...],
-                "experience": {...},
-                "verdict": "...",
-                "reasoning": "...",
-                "strengths": [...],
-                "gaps": [...]
-            }
+        Flow:
+        1. Extract text from PDF
+        2. Detect ONLY valid technical skills
+        3. Match against required skills
+        4. Calculate deterministic score
+        5. Use AI for reasoning (optional enhancement)
+        6. Return structured result
         """
         
-        if not client:
-            return AIGatekeeper._fallback_analysis()
-        
         try:
-            # Extract text from ENTIRE PDF (no truncation for accuracy)
+            # ===== STEP 1: EXTRACT PDF TEXT =====
             print("[PDF] Extracting text from PDF...")
             pdf_file = BytesIO(pdf_bytes)
             text_content = ""
@@ -68,509 +116,586 @@ class AIGatekeeper:
                 return AIGatekeeper._fallback_analysis()
             
             print(f"[INFO] Extracted {len(text_content)} characters from PDF")
+            text_lower = text_content.lower()
             
-            # ===== AI REASONING ANALYSIS using HF Router API =====
-            print("[AI] Analyzing resume with deep reasoning...")
-            print("   Using HuggingFace Router Chat API...")
+            # ===== STEP 2: EXTRACT PERSONAL DETAILS =====
+            personal = AIGatekeeper._extract_personal_details(text_content)
+            print(f"[INFO] Extracted: {personal['name']}, {personal['email']}")
             
-            # Build intelligent analysis prompt
-            analysis_prompt = f"""Analyze this resume for the job position. Consider skill matches, transferable skills, experience, and overall fit.
-
-JOB: {job_title}
-DESCRIPTION: {job_description}
-REQUIRED SKILLS: {required_skills}
-MIN EXPERIENCE: {minimum_experience} years
-
-RESUME:
-{text_content[:3500]}
-
-
-Respond with JSON only:
-{{"name": "candidate name", "email": "email", "phone": "phone", "experience": years_number, "skills": ["skill1", "skill2"], "summary": "professional summary of candidate (2-3 sentences)", "match_score": 0-100, "decision": "YES" or "NO", "reasoning": "detailed explanation of why"}}"""
-
-            # Working models on HF Router (chat completion API)
-            chat_models = [
-                "meta-llama/Llama-3.2-3B-Instruct",
-                "Qwen/Qwen2.5-72B-Instruct",
-            ]
+            # ===== STEP 3: DETECT SKILLS (Only valid technical skills) =====
+            detected_skills = AIGatekeeper._detect_technical_skills(text_lower)
+            print(f"[SKILLS] Detected {len(detected_skills)} valid skills: {detected_skills[:10]}...")
             
-            ai_analysis_result = None
+            # ===== STEP 4: EXTRACT EXPERIENCE YEARS =====
+            experience_years = AIGatekeeper._extract_experience(text_lower)
+            print(f"[EXP] Detected {experience_years} years of experience")
             
-            for model_name in chat_models:
-                try:
-                    print(f"   [TRY] {model_name}...")
-                    
-                    # Use new router endpoint with chat completion API
-                    api_url = "https://router.huggingface.co/v1/chat/completions"
-                    headers = {
-                        "Authorization": f"Bearer {HF_TOKEN}",
-                        "Content-Type": "application/json"
-                    }
-                    
-                    payload = {
-                        "model": model_name,
-                        "messages": [
-                            {"role": "user", "content": analysis_prompt}
-                        ],
-                        "max_tokens": 500,
-                        "temperature": 0.3
-                    }
-                    
-                    response = requests.post(api_url, headers=headers, json=payload, timeout=90)
-                    
-                    if response.status_code == 200:
-                        result = response.json()
-                        ai_text = result.get('choices', [{}])[0].get('message', {}).get('content', '')
-                        
-                        if ai_text and len(ai_text) > 20:
-                            print(f"   [OK] Got AI response from {model_name}")
-                            ai_analysis_result = ai_text
-                            break
-                        
-                    elif response.status_code == 503:
-                        print(f"   [WAIT] {model_name} loading...")
-                        time.sleep(5)
-                    else:
-                        print(f"   [WARN] {model_name} returned {response.status_code}")
-                        
-                except requests.Timeout:
-                    print(f"   [TIMEOUT] {model_name}")
-                except Exception as e:
-                    print(f"   [WARN] {model_name} error: {str(e)[:60]}")
-            
-            # Parse AI response
-            if ai_analysis_result:
-                try:
-                    print("   [PARSE] Parsing AI reasoning...")
-                    
-                    # Try to extract JSON
-                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', ai_analysis_result, re.DOTALL)
-                    
-                    if json_match:
-                        ai_data = json.loads(json_match.group(0))
-                        
-                        # Extract data with fallbacks
-                        name = ai_data.get('name', '').strip()
-                        email_ai = ai_data.get('email', '').strip()
-                        phone_ai = ai_data.get('phone', '').strip()
-                        experience = ai_data.get('experience', 0) or ai_data.get('experience_years', 0)
-                        skills = ai_data.get('skills', [])
-                        # Use AI summary if available, otherwise just use verdict later
-                        summary = ai_data.get('summary', 'AI analysis complete.')
-                        match_score = ai_data.get('match_score', 50)
-                        decision = ai_data.get('decision', 'NO').upper()
-                        reasoning = ai_data.get('reasoning', 'Analysis completed.')
-                        
-                        # Validate and use pattern matching as backup for missing fields
-                        if not email_ai or '@' not in email_ai:
-                            email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', text_content[:3000])
-                            email_ai = email_match.group(0) if email_match else ''
-                        
-                        if not phone_ai:
-                            phone_match = re.search(r'(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', text_content[:3000])
-                            phone_ai = phone_match.group(0) if phone_match else ''
-                        
-                        if decision == "YES" or match_score >= 75:
-                            category = "High Match"
-                            verdict = "[YES] Strongly Recommended (AI Reasoning)"
-                        elif match_score >= 60:
-                            category = "Potential"
-                            verdict = "[MAYBE] Consider (AI Reasoning)"
-                        else:
-                            category = "Reject"  
-                            verdict = "[NO] Not Recommended (AI Reasoning)"
-                        
-                        print(f"   [OK] AI Analysis Complete: {decision} ({match_score}%)")
-                        
-                        return {
-                            "category": category,
-                            "match_score": match_score,
-                            "personal_details": {
-                                "name": name or "Unknown",
-                                "email": email_ai,
-                                "phone": phone_ai,
-                                "location": ""
-                            },
-                            "skills": skills if isinstance(skills, list) else [],
-                            "experience_years": int(experience) if experience else 0,
-                            "key_achievements": [],
-                            "verdict": verdict,
-                            "summary": summary,  # Return the actual summary
-                            "reasoning": f"AI DECISION: {decision}\n\n{reasoning}",
-                            "strengths": skills[:10] if isinstance(skills, list) else [],
-                            "gaps": []
-                        }
-                        
-                except json.JSONDecodeError:
-                    print(f"   [WARN] Could not parse JSON from AI response")
-                except Exception as e:
-                    print(f"   [WARN] Error processing AI response: {e}")
-            
-            # Fallback to enhanced pattern matching
-            print("   [INFO] AI unavailable, using enhanced pattern matching...")
-            return AIGatekeeper._pattern_matching_analysis(
-                text_content, job_title, job_description, required_skills, minimum_experience
+            # ===== STEP 5: MATCH SKILLS AGAINST REQUIREMENTS =====
+            required_list = [s.strip() for s in required_skills.split(',') if s.strip()]
+            matching_skills, missing_skills = AIGatekeeper._match_skills(
+                text_lower, required_list, detected_skills
             )
             
-        except json.JSONDecodeError as e:
-            print(f"[WARN] JSON parsing error: {e}")
-            print(f"Raw response: {result_text[:500]}")
-            return AIGatekeeper._fallback_analysis()
+            print(f"[MATCH] Matched: {matching_skills}")
+            print(f"[MATCH] Missing: {missing_skills}")
+            
+            # ===== STEP 6: CALCULATE DETERMINISTIC SCORE =====
+            match_score, category, decision = AIGatekeeper._calculate_score(
+                matching_skills=matching_skills,
+                required_skills=required_list,
+                experience_years=experience_years,
+                minimum_experience=minimum_experience
+            )
+            
+            print(f"[SCORE] {match_score}% → {category} ({decision})")
+            
+            # ===== STEP 7: GENERATE REASONING =====
+            reasoning = AIGatekeeper._generate_reasoning(
+                name=personal['name'],
+                job_title=job_title,
+                matching_skills=matching_skills,
+                missing_skills=missing_skills,
+                required_skills=required_list,
+                experience_years=experience_years,
+                minimum_experience=minimum_experience,
+                match_score=match_score,
+                decision=decision
+            )
+            
+            # ===== STEP 8: GET AI SUMMARY (Optional) =====
+            ai_summary = AIGatekeeper._get_ai_summary(
+                text_content[:3000],
+                job_title,
+                job_description,
+                required_skills,
+                decision
+            )
+            
+            # ===== STEP 9: BUILD VERDICT =====
+            if decision == "YES":
+                verdict = "[YES] Strongly Recommended"
+            elif decision == "MAYBE":
+                verdict = "[MAYBE] Consider with Review"
+            else:
+                verdict = "[NO] Not Recommended"
+            
+            # Summary text
+            skills_text = ', '.join(matching_skills[:5]) if matching_skills else 'None matched'
+            summary = ai_summary if ai_summary else f"{personal['name']} - {category} candidate with {experience_years} years experience. Skills: {skills_text}."
+            
+            return {
+                "category": category,
+                "match_score": match_score,
+                "personal_details": personal,
+                "skills": detected_skills,  # All detected technical skills
+                "experience_years": experience_years,
+                "key_achievements": [],
+                "verdict": verdict,
+                "summary": summary,
+                "reasoning": reasoning,
+                "strengths": matching_skills,  # Skills that matched requirements
+                "gaps": missing_skills  # Required skills not found
+            }
             
         except Exception as e:
-            print(f"[ERROR] AI Gatekeeper error: {e}")
+            print(f"[ERROR] Analysis failed: {e}")
             return AIGatekeeper._fallback_analysis()
     
     @staticmethod
-    def _pattern_matching_analysis(text_content: str, job_title: str, job_description: str, required_skills: str, minimum_experience: int) -> Dict:
-        """Enhanced pattern matching with high accuracy - analyzes FULL resume"""
-        import re
+    def _extract_personal_details(text: str) -> Dict:
+        """Extract name, email, phone from resume text."""
+        # Email
+        email_match = re.search(
+            r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+            text[:3000]
+        )
+        email = email_match.group(0) if email_match else ""
         
-        print("[INFO] Analyzing full resume with enhanced pattern matching...")
+        # Phone
+        phone_match = re.search(
+            r'(\+\d{1,3}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}',
+            text[:3000]
+        )
+        phone = phone_match.group(0) if phone_match else ""
         
-        # Convert to lowercase for case-insensitive matching
-        text_lower = text_content.lower()
-        
-        # ===== PERSONAL DETAILS EXTRACTION =====
-        email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-        phone_pattern = r'(\+\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
-        
-        # Search in first 3000 chars for contact info
-        email = re.search(email_pattern, text_content[:3000])
-        phone = re.search(phone_pattern, text_content[:3000])
-        
-        # Extract name (first non-empty line that's likely a name)
-        lines = [l.strip() for l in text_content.split('\n') if l.strip()]
+        # Name (first substantial line that's not a header)
+        lines = [l.strip() for l in text.split('\n') if l.strip()]
         name = "Unknown"
-        for line in lines[:5]:  # Check first 5 lines
-            # Skip common resume headers
-            if len(line) > 3 and len(line) < 50 and not any(skip in line.lower() for skip in ['resume', 'curriculum', 'cv', 'contact', 'email', 'phone', '@']):
-                name = line
-                break
+        skip_words = ['resume', 'curriculum', 'cv', 'contact', 'email', 'phone', 
+                      'address', 'objective', 'summary', '@', 'http', 'www']
         
-        # ===== ENHANCED SKILL DETECTION =====
-        # Comprehensive skill dictionary with variations
-        skill_database = {
-            # Programming Languages
-            'Python': ['python', 'py', 'django', 'flask', 'fastapi', 'pytorch', 'tensorflow'],
-            'JavaScript': ['javascript', 'js', 'node.js', 'nodejs', 'react', 'vue', 'angular', 'next.js', 'express'],
-            'TypeScript': ['typescript', 'ts'],
-            'Java': ['java', 'spring', 'spring boot', 'hibernate'],
-            'C++': ['c++', 'cpp'],
-            'C#': ['c#', 'csharp', '.net', 'dotnet', 'asp.net'],
-            'Go': ['golang', ' go ', 'go language'],
-            'Rust': ['rust'],
-            'Ruby': ['ruby', 'rails', 'ruby on rails'],
-            'PHP': ['php', 'laravel', 'symfony'],
-            
-            # Frontend
-            'React': ['react', 'reactjs', 'react.js'],
-            'Vue': ['vue', 'vuejs', 'vue.js'],
-            'Angular': ['angular', 'angularjs'],
-            'HTML': ['html', 'html5'],
-            'CSS': ['css', 'css3', 'scss', 'sass'],
-            'Tailwind': ['tailwind', 'tailwindcss'],
-            'Bootstrap': ['bootstrap'],
-            
-            # Backend
-            'Node.js': ['node', 'nodejs', 'node.js', 'express'],
-            'Django': ['django'],
-            'Flask': ['flask'],
-            'FastAPI': ['fastapi', 'fast api'],
-            'Express': ['express', 'expressjs'],
-            
-            # Databases
-            'SQL': ['sql', 'mysql', 'postgresql', 'mssql'],
-            'PostgreSQL': ['postgresql', 'postgres', 'psql'],
-            'MySQL': ['mysql'],
-            'MongoDB': ['mongodb', 'mongo'],
-            'Redis': ['redis'],
-            'Elasticsearch': ['elasticsearch', 'elastic'],
-            
-            # Cloud & DevOps
-            'AWS': ['aws', 'amazon web services', 'ec2', 's3', 'lambda', 'dynamodb'],
-            'Azure': ['azure', 'microsoft azure'],
-            'GCP': ['gcp', 'google cloud', 'google cloud platform'],
-            'Docker': ['docker', 'dockerfile', 'containerization'],
-            'Kubernetes': ['kubernetes', 'k8s'],
-            'CI/CD': ['ci/cd', 'cicd', 'continuous integration', 'continuous deployment', 'jenkins', 'github actions'],
-            'Git': ['git', 'github', 'gitlab', 'bitbucket'],
-            
-            # ML/AI
-            'Machine Learning': ['machine learning', 'ml', 'predictive model'],
-            'TensorFlow': ['tensorflow', 'tf'],
-            'PyTorch': ['pytorch', 'torch'],
-            'Data Science': ['data science', 'data analysis', 'data analytics'],
-            
-            # Other
-            'REST': ['rest', 'restful', 'rest api'],
-            'GraphQL': ['graphql', 'graph ql'],
-            'API': ['api', 'apis'],
+        for line in lines[:10]:
+            line_lower = line.lower()
+            # Skip if contains skip words or is too long/short
+            if len(line) < 3 or len(line) > 50:
+                continue
+            if any(skip in line_lower for skip in skip_words):
+                continue
+            if re.search(r'\d{5,}', line):  # Skip phone/ID numbers
+                continue
+            # Likely a name
+            name = line
+            break
+        
+        return {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "location": ""
         }
+    
+    @staticmethod
+    def _detect_technical_skills(text_lower: str) -> List[str]:
+        """
+        Detect ONLY valid technical skills from the master database.
+        No random text - only real skills.
+        """
+        detected = []
         
-        detected_skills = []
-        for skill_name, variations in skill_database.items():
-            for variation in variations:
-                if variation in text_lower:
-                    detected_skills.append(skill_name)
-                    break  # Found this skill, move to next
+        for skill in AIGatekeeper.TECHNICAL_SKILLS:
+            skill_lower = skill.lower()
+            # Word boundary matching to avoid partial matches
+            # E.g., "C" shouldn't match "Contact"
+            if len(skill) <= 2:
+                # For very short skills (C, R, Go), require word boundaries
+                pattern = r'\b' + re.escape(skill_lower) + r'\b'
+                if re.search(pattern, text_lower):
+                    detected.append(skill)
+            else:
+                # For longer skills, simple contains check works
+                if skill_lower in text_lower:
+                    detected.append(skill)
         
-        # Remove duplicates
-        detected_skills = list(set(detected_skills))
-        
-        print(f"   [OK] Detected {len(detected_skills)} skills from resume")
-        
-        # ===== EXPERIENCE EXTRACTION (Enhanced) =====
-        exp_patterns = [
+        return list(set(detected))
+    
+    @staticmethod
+    def _extract_experience(text_lower: str) -> int:
+        """Extract years of experience from resume."""
+        # Pattern 1: "X years of experience"
+        patterns = [
             r'(\d+)\+?\s*years?\s+(?:of\s+)?experience',
             r'experience[:\s]+(\d+)\+?\s*years?',
-            r'(\d+)\+?\s*years?\s+in',
+            r'(\d+)\+?\s*years?\s+in\s+',
             r'over\s+(\d+)\s+years',
-            r'more than\s+(\d+)\s+years',
+            r'more\s+than\s+(\d+)\s+years',
+            r'(\d+)\+?\s*yrs?\s+(?:of\s+)?exp',
         ]
         
-        experience_years = 0
-        for pattern in exp_patterns:
+        max_years = 0
+        for pattern in patterns:
             matches = re.findall(pattern, text_lower)
-            if matches:
-                # Take the maximum mentioned years
-                experience_years = max([int(m) for m in matches])
-                break
+            for match in matches:
+                years = int(match)
+                if years < 50:  # Sanity check
+                    max_years = max(max_years, years)
         
-        # If no explicit years, try to infer from job history
-        if experience_years == 0:
-            # Look for date ranges (2020-2023, Jan 2020 - Dec 2023, etc.)
-            date_patterns = [
-                r'(\d{4})\s*[-–]\s*(\d{4})',
-                r'(\d{4})\s*[-–]\s*present',
-                r'(\d{4})\s*[-–]\s*current',
-            ]
-            years_set = set()
-            for pattern in date_patterns:
-                matches = re.findall(pattern, text_lower)
-                for match in matches:
-                    if isinstance(match, tuple):
-                        start_year = int(match[0])
-                        end_year = 2024 if 'present' in text_lower or 'current' in text_lower else int(match[1]) if match[1].isdigit() else 2024
-                        years_set.add(end_year - start_year)
+        # If no explicit mention, try to calculate from date ranges
+        if max_years == 0:
+            # Look for year ranges like 2020-2024 or 2020-Present
+            year_pattern = r'(20\d{2})\s*[-–to]+\s*(20\d{2}|present|current|now)'
+            matches = re.findall(year_pattern, text_lower)
             
-            if years_set:
-                experience_years = sum(years_set)
+            total_years = 0
+            for start, end in matches:
+                start_year = int(start)
+                if end.isdigit():
+                    end_year = int(end)
+                else:
+                    end_year = 2026  # Current year
+                
+                if end_year >= start_year:
+                    total_years += (end_year - start_year)
+            
+            max_years = min(total_years, 30)  # Cap at 30 years
         
-        print(f"   [OK] Detected {experience_years} years of experience")
+        return max_years
+    
+    @staticmethod
+    def _match_skills(resume_text: str, required_skills: List[str], detected_skills: List[str]) -> tuple:
+        """
+        Match required skills (from recruiter) against the resume text directly.
         
-        # ===== JOB MATCHING ANALYSIS =====
-        required_skill_list = [s.strip() for s in required_skills.split(',') if s.strip()]
+        Process:
+        1. For each skill the recruiter specified, search the resume text directly
+        2. Also check if it was in our detected skills list
+        3. Return the recruiter's skill name (not our database name) for matches
         
-        # Find matching skills (case-insensitive, flexible)
-        matching_skills = []
-        for required in required_skill_list:
-            for detected in detected_skills:
-                if required.lower() in detected.lower() or detected.lower() in required.lower():
-                    matching_skills.append(detected)
-                    break
+        Returns (matching_skills, missing_skills)
+        """
+        text_lower = resume_text.lower()
+        matching = []
+        missing = []
         
-        # Remove duplicates
-        matching_skills = list(set(matching_skills))
+        for required in required_skills:
+            req_clean = required.strip()
+            if not req_clean:
+                continue
+            
+            req_lower = req_clean.lower()
+            found = False
+            
+            # Method 1: Direct search in resume text
+            # Use word boundary for short skills to avoid false matches
+            if len(req_clean) <= 3:
+                # For short skills like "C", "R", "Go" - need word boundaries
+                pattern = r'\b' + re.escape(req_lower) + r'\b'
+                if re.search(pattern, text_lower):
+                    found = True
+            else:
+                # For longer skills, simple contains works
+                if req_lower in text_lower:
+                    found = True
+            
+            # Method 2: Check against detected skills (with variations)
+            if not found:
+                for detected in detected_skills:
+                    det_lower = detected.lower()
+                    if req_lower == det_lower:
+                        found = True
+                        break
+                    elif req_lower in det_lower or det_lower in req_lower:
+                        found = True
+                        break
+                    elif AIGatekeeper._are_skills_equivalent(req_lower, det_lower):
+                        found = True
+                        break
+            
+            if found:
+                matching.append(req_clean)  # Return recruiter's exact skill name
+            else:
+                missing.append(req_clean)
         
-        # Calculate base match score
-        if required_skill_list:
-            skill_match_ratio = len(matching_skills) / len(required_skill_list)
-            match_score = int(skill_match_ratio * 100)
+        print(f"   [SKILL_MATCH] Required: {required_skills}")
+        print(f"   [SKILL_MATCH] Found: {matching}")
+        print(f"   [SKILL_MATCH] Missing: {missing}")
+        
+        return matching, missing
+    
+    @staticmethod
+    def _are_skills_equivalent(skill1: str, skill2: str) -> bool:
+        """Check if two skills are equivalent (e.g., 'js' == 'javascript')"""
+        equivalents = [
+            {'javascript', 'js', 'ecmascript'},
+            {'typescript', 'ts'},
+            {'python', 'py'},
+            {'react', 'reactjs', 'react.js'},
+            {'vue', 'vuejs', 'vue.js'},
+            {'angular', 'angularjs'},
+            {'node', 'nodejs', 'node.js'},
+            {'postgres', 'postgresql'},
+            {'mongo', 'mongodb'},
+            {'kubernetes', 'k8s'},
+            {'amazon web services', 'aws'},
+            {'google cloud', 'gcp', 'google cloud platform'},
+            {'microsoft azure', 'azure'},
+            {'c#', 'csharp', 'c sharp'},
+            {'c++', 'cpp'},
+            {'.net', 'dotnet', 'dot net'},
+        ]
+        
+        for group in equivalents:
+            if skill1 in group and skill2 in group:
+                return True
+        
+        return False
+    
+    @staticmethod
+    def _calculate_score(
+        matching_skills: List[str],
+        required_skills: List[str],
+        experience_years: int,
+        minimum_experience: int
+    ) -> tuple:
+        """
+        Calculate deterministic match score.
+        
+        Formula:
+        - 70% weight on skill match
+        - 30% weight on experience match
+        
+        Returns: (score, category, decision)
+        """
+        # Skill score (70% of total)
+        if required_skills:
+            skill_ratio = len(matching_skills) / len(required_skills)
+            skill_score = skill_ratio * 70
         else:
-            match_score = 50
+            skill_score = 35  # Default if no skills specified
         
-        # Bonus for extra relevant skills
-        extra_skills = len(detected_skills) - len(matching_skills)
-        if extra_skills > 5:
-            match_score += 5
+        # Experience score (30% of total)
+        if minimum_experience > 0:
+            exp_ratio = min(experience_years / minimum_experience, 1.5)  # Cap at 150%
+            exp_score = min(exp_ratio * 30, 30)  # Max 30 points
+        else:
+            # No experience requirement - give full points if any experience
+            exp_score = 30 if experience_years > 0 else 15
         
-        # Experience factor
-        if experience_years >= minimum_experience:
-            match_score += 15  # Significant bonus
-        elif experience_years >= minimum_experience * 0.7:  # Within 70%
-            match_score += 5  # Minor bonus
-        elif experience_years > 0 and experience_years < minimum_experience * 0.5:
-            match_score -= 15  # Significant penalty
+        # Total score
+        total_score = int(skill_score + exp_score)
+        total_score = min(100, max(0, total_score))
         
-        # Job description relevance check
-        job_desc_lower = job_description.lower()
-        relevance_keywords = []
-        for skill in matching_skills:
-            if skill.lower() in job_desc_lower:
-                relevance_keywords.append(skill)
-        
-        if len(relevance_keywords) > len(matching_skills) * 0.7:
-            match_score += 5  # Bonus for high relevance
-        
-        # Cap at 100
-        match_score = min(100, max(0, match_score))
-        
-        # ===== DECISION MAKING =====
-        if match_score >= 75:
+        # Decision thresholds
+        if total_score >= 75:
             category = "High Match"
-            verdict = "[YES] Strongly Recommended"
             decision = "YES"
-        elif match_score >= 60:
+        elif total_score >= 55:
             category = "Potential"
-            verdict = "[MAYBE] Consider with Review"
             decision = "MAYBE"
         else:
             category = "Reject"
-            verdict = "[NO] Not Recommended"
             decision = "NO"
         
-        gaps_list = [req for req in required_skill_list if not any(req.lower() in match.lower() or match.lower() in req.lower() for match in matching_skills)]
+        return total_score, category, decision
+    
+    @staticmethod
+    def _generate_reasoning(
+        name: str,
+        job_title: str,
+        matching_skills: List[str],
+        missing_skills: List[str],
+        required_skills: List[str],
+        experience_years: int,
+        minimum_experience: int,
+        match_score: int,
+        decision: str
+    ) -> str:
+        """Generate AI-powered recommendation with independent thinking."""
         
-        # Generate Summary
-        summary = f"{name} is a {category} candidate with {experience_years} years of experience. Demonstrated skills include {', '.join(matching_skills[:5])}. {verdict}."
+        if not HF_TOKEN:
+            # Fallback to deterministic if no AI available
+            return AIGatekeeper._generate_deterministic_reasoning(
+                name, job_title, matching_skills, missing_skills, 
+                required_skills, experience_years, minimum_experience, 
+                match_score, decision
+            )
+        
+        try:
+            candidate_name = name if name != "Unknown" else "This candidate"
+            
+            # Build comprehensive context for AI
+            prompt = f"""
+You are a strict Technical Recruiter and Hiring Manager. Your job is to filter candidates for the role of **{job_title}**. 
+Your goal is to reject irrelevant candidates immediately to save the engineering team time.
 
+### JOB DETAILS
+**Title:** {job_title}
+**Experience Required:** {minimum_experience} years
+**Description & Requirements:** {job_description}
+
+### CANDIDATE RESUME
+{resume_text}
+
+### INSTRUCTION
+Evaluate the candidate strictly based on the evidence in the resume. Do not assume they know a skill if it is not mentioned. 
+
+**Decision Logic:**
+1. **Tech Stack Mismatch (Hard Fail):** If the job requires a specific core language/framework (e.g., .NET, Python, React) and the candidate has NO mention of it or equivalent experience, the decision is **NO**.
+2. **Seniority Mismatch:** If the job is "Senior" or "Lead" and the candidate has less than 3 years of total experience, the decision is **NO**.
+3. **Domain Mismatch:** If the candidate's experience is in a completely different field (e.g., Data Entry applying for Software Engineering), the decision is **NO**.
+
+**Output Format:**
+You must return a valid JSON object. Do not add markdown formatting.
+{{
+    "decision": "YES" | "NO",
+    "rationale": "One sharp sentence explaining why. If NO, mention exactly which requirement was missed.",
+    "match_score": <integer_0_to_100>,
+    "missing_skills": ["List", "of", "critical", "missing", "skills"]
+}}
+"""
+
+            api_url = "https://router.huggingface.co/v1/chat/completions"
+            response = requests.post(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {HF_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "meta-llama/Llama-3.2-3B-Instruct",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 300,
+                    "temperature": 0.7  # Higher temperature for more nuanced thinking
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                ai_recommendation = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                
+                if ai_recommendation and len(ai_recommendation) > 20:
+                    # Clean up the response
+                    reasoning = ai_recommendation.strip()
+                    
+                    # Ensure it starts with YES/NO/MAYBE
+                    if not any(reasoning.upper().startswith(verdict) for verdict in ['**YES**', '**NO**', '**MAYBE**', 'YES', 'NO', 'MAYBE']):
+                        # If AI didn't follow format, prepend based on calculated decision
+                        reasoning = f"**{decision}** - {reasoning}"
+                    elif reasoning.upper().startswith(('YES', 'NO', 'MAYBE')):
+                        # Add bold formatting if missing
+                        for verdict in ['YES', 'NO', 'MAYBE']:
+                            if reasoning.upper().startswith(verdict):
+                                reasoning = f"**{verdict}** - {reasoning[len(verdict):].lstrip(' -:')}"
+                                break
+                    
+                    print(f"[AI RECOMMENDATION] {reasoning[:100]}...")
+                    return reasoning
+                else:
+                    print("[WARN] AI response too short, using fallback")
+            else:
+                print(f"[WARN] AI API returned {response.status_code}, using fallback")
+                
+        except Exception as e:
+            print(f"[WARN] AI recommendation failed: {e}, using fallback")
         
-        # ===== BUILD DETAILED REASONING =====
-        reasoning_parts = [
-            f"HIRING DECISION: {decision}",
-            f"",
-            f"Match Score: {match_score}%",
-            f"Experience: {experience_years} years (required: {minimum_experience}+)",
-            f"Skills Matched: {len(matching_skills)}/{len(required_skill_list)} required skills",
-            f"",
-            f"SKILL ANALYSIS:",
-            f"[+] Matching Skills: {', '.join(matching_skills) if matching_skills else 'None'}",
-            f"[-] Missing Skills: {', '.join(gaps_list) if gaps_list else 'None'}",
-            f"[i] Additional Skills: {len(detected_skills) - len(matching_skills)} other relevant skills detected",
-            f"",
-            f"DECISION RATIONALE:",
-        ]
+        # Fallback to deterministic if AI fails
+        return AIGatekeeper._generate_deterministic_reasoning(
+            name, job_title, matching_skills, missing_skills,
+            required_skills, experience_years, minimum_experience,
+            match_score, decision
+        )
+    
+    @staticmethod
+    def _generate_deterministic_reasoning(
+        name: str,
+        job_title: str,
+        matching_skills: List[str],
+        missing_skills: List[str],
+        required_skills: List[str],
+        experience_years: int,
+        minimum_experience: int,
+        match_score: int,
+        decision: str
+    ) -> str:
+        """Fallback deterministic reasoning when AI is unavailable."""
+        
+        candidate_name = name if name != "Unknown" else "This candidate"
+        skill_count = len(matching_skills)
+        total_skills = len(required_skills)
         
         if decision == "YES":
-            reasoning_parts.append(f"[+] This candidate is STRONGLY RECOMMENDED for the {job_title} position.")
-            reasoning_parts.append(f"   - High skill match ({len(matching_skills)}/{len(required_skill_list)} required skills)")
-            if experience_years >= minimum_experience:
-                reasoning_parts.append(f"   - Meets experience requirements ({experience_years} years)")
-            reasoning_parts.append(f"   - Well-suited for this role based on comprehensive analysis")
-        elif decision == "MAYBE":
-            reasoning_parts.append(f"[?] This candidate shows POTENTIAL but requires careful review.")
-            reasoning_parts.append(f"   - Moderate skill match ({len(matching_skills)}/{len(required_skill_list)} required skills)")
-            reasoning_parts.append(f"   - Missing {len(gaps_list)} key skills that may need training")
-            reasoning_parts.append(f"   - Consider for interview if willing to invest in skill development")
-        else:
-            reasoning_parts.append(f"[-] This candidate is NOT RECOMMENDED for the {job_title} position.")
-            reasoning_parts.append(f"   - Insufficient skill match (only {len(matching_skills)}/{len(required_skill_list)} required skills)")
-            reasoning_parts.append(f"   - Missing critical skills: {', '.join(gaps_list[:3])}")
-            if experience_years < minimum_experience:
-                reasoning_parts.append(f"   - Below experience requirement")
-        
-        reasoning = "\n".join(reasoning_parts)
-        
-        print(f"   [OK] Analysis complete: {decision} ({match_score}%)")
-        
-        return {
-            "category": category,
-            "match_score": match_score,
-            "personal_details": {
-                "name": name,
-                "email": email.group(0) if email else "",
-                "phone": phone.group(0) if phone else "",
-                "location": ""
-            },
-            "skills": detected_skills,
-            "experience_years": experience_years,
-            "key_achievements": [],
-            "verdict": verdict,
-            "summary": summary,
-            "reasoning": reasoning,
-            "strengths": matching_skills,
-            "gaps": gaps_list
-        }
-    
-    
-    @staticmethod
-    def _extract_json_from_text(text: str) -> Dict:
-        """Extract JSON from LLM response text"""
-        try:
-            # Try to find JSON in the text
-            start_idx = text.find('{')
-            end_idx = text.rfind('}') + 1
+            # Start with clear YES verdict
+            reasoning = "**YES** - "
             
-            if start_idx != -1 and end_idx > start_idx:
-                json_str = text[start_idx:end_idx]
-                return json.loads(json_str)
+            # Enthusiastic recommendation
+            if skill_count == total_skills:
+                reasoning += f"I'd definitely recommend {candidate_name} for the {job_title} role! "
+                reasoning += f"They have all {total_skills} required skills we're looking for"
             else:
-                # Try parsing the whole text
-                return json.loads(text)
-        except:
-            print(f"⚠️ JSON parsing failed, using fallback")
-            return AIGatekeeper._fallback_analysis()
+                reasoning += f"I think {candidate_name} would be a great fit for the {job_title} position. "
+                reasoning += f"They've got {skill_count} out of {total_skills} key skills"
+            
+            if matching_skills:
+                reasoning += f" including {', '.join(matching_skills[:3])}"
+                if len(matching_skills) > 3:
+                    reasoning += f" and {len(matching_skills) - 3} more"
+            reasoning += ". "
+            
+            if experience_years > 0:
+                if experience_years >= minimum_experience:
+                    reasoning += f"With {experience_years} years of experience, they meet our requirements. "
+                else:
+                    reasoning += f"They bring {experience_years} years of relevant experience. "
+            
+            reasoning += "I'd say let's move forward with an interview!"
+        
+        elif decision == "MAYBE":
+            # Start with clear MAYBE verdict
+            reasoning = "**MAYBE** - "
+            
+            # Cautiously optimistic
+            reasoning += f"{candidate_name} has potential for the {job_title} role, but there are some gaps to consider. "
+            
+            if skill_count > 0:
+                reasoning += f"On the plus side, they have experience with {', '.join(matching_skills[:3])}. "
+            
+            if missing_skills:
+                reasoning += f"However, they're missing {', '.join(missing_skills[:3])}"
+                if len(missing_skills) > 3:
+                    reasoning += f" and {len(missing_skills) - 3} other skills"
+                reasoning += " which are important for this role. "
+            
+            if experience_years > 0:
+                reasoning += f"They do have {experience_years} years of experience which is valuable. "
+            
+            reasoning += "I'd suggest considering them if you're open to some training, or if you have other candidates to compare against."
+        
+        else:
+            # Start with clear NO verdict
+            reasoning = "**NO** - "
+            
+            # Honest rejection
+            reasoning += f"Unfortunately, I don't think {candidate_name} is the right fit for the {job_title} position at this time. "
+            
+            if skill_count == 0:
+                reasoning += f"They don't seem to have any of the {total_skills} required skills we're looking for"
+                if missing_skills:
+                    reasoning += f" ({', '.join(missing_skills[:3])})"
+                reasoning += ". "
+            else:
+                reasoning += f"They only have {skill_count} out of {total_skills} required skills. "
+                if missing_skills:
+                    reasoning += f"Key missing skills include {', '.join(missing_skills[:3])}. "
+            
+            if minimum_experience > 0 and experience_years < minimum_experience:
+                reasoning += f"Also, they have {experience_years} years of experience but we need at least {minimum_experience}. "
+            
+            reasoning += "I'd recommend looking at other candidates who better match the requirements."
+        
+        return reasoning
     
     @staticmethod
-    def _build_gatekeeper_prompt(
+    def _get_ai_summary(
+        resume_text: str,
         job_title: str,
         job_description: str,
         required_skills: str,
-        minimum_experience: int
+        decision: str
     ) -> str:
-        """Build the prompt for the LLM to act as gatekeeper"""
+        """Optional: Get AI-generated candidate summary."""
         
-        return f"""You are an expert AI Recruiter acting as a Gatekeeper for candidate screening.
+        if not HF_TOKEN:
+            return ""
+        
+        try:
+            prompt = f"""Write a 2-sentence professional summary of this candidate based ONLY on their resume.
+Summarize their background, experience, and key skills. Do NOT evaluate their fit for any job.
 
-**JOB DETAILS:**
-- Title: {job_title}
-- Description: {job_description}
-- Required Skills: {required_skills}
-- Minimum Experience: {minimum_experience} years
+Resume excerpt:
+{resume_text[:1500]}
 
-**YOUR TASK:**
-Analyze the resume PDF and determine if this candidate is a good fit for the role.
-
-**EXTRACT:**
-1. Personal Details (name, email, phone, location - if visible)
-2. All Technical Skills
-3. Total Years of Experience
-4. Key Achievements
-
-**EVALUATE:**
-- Compare candidate's skills against required skills
-- Check if experience meets minimum requirement
-- Assess overall fit for the role
-
-**CATEGORIZE:**
-Based on your analysis, place the candidate in ONE category:
-- **"High Match"** (80%+ match) - Meets most/all requirements, strong candidate
-- **"Potential"** (50-79% match) - Meets some requirements, could work with training
-- **"Reject"** (<50% match) - Doesn't meet key requirements
-
-**OUTPUT FORMAT:**
-Return ONLY valid JSON (no markdown, no code blocks):
-
-{{
-  "category": "High Match" | "Potential" | "Reject",
-  "match_score": <number 0-100>,
-  "personal_details": {{
-    "name": "...",
-    "email": "...",
-    "phone": "...",
-    "location": "..."
-  }},
-  "skills": ["skill1", "skill2", ...],
-  "experience_years": <number>,
-  "key_achievements": ["achievement1", "achievement2"],
-  "verdict": "One sentence summary of candidate",
-  "reasoning": "2-3 sentences explaining your decision",
-  "strengths": ["strength1", "strength2", ...],
-  "gaps": ["gap1", "gap2", ...]
-}}
-
-**IMPORTANT:**
-- Return ONLY the JSON object, nothing else
-- Be strict but fair in evaluation
-- Focus on matching job requirements
-- If resume is poorly formatted or unreadable, category should be "Reject"
-"""
-    
+Write ONLY the 2-sentence summary about the candidate, nothing else:"""
+            
+            api_url = "https://router.huggingface.co/v1/chat/completions"
+            response = requests.post(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {HF_TOKEN}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "meta-llama/Llama-3.2-3B-Instruct",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 150,
+                    "temperature": 0.3
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                summary = result.get('choices', [{}])[0].get('message', {}).get('content', '')
+                if summary and len(summary) > 20:
+                    return summary.strip()
+            
+        except Exception as e:
+            print(f"[WARN] AI summary failed: {e}")
+        
+        return ""
     
     @staticmethod
     def _fallback_analysis() -> Dict:
-        """Fallback when AI is unavailable"""
+        """Fallback when analysis fails."""
         return {
             "category": "Potential",
             "match_score": 50,
@@ -583,14 +708,16 @@ Return ONLY valid JSON (no markdown, no code blocks):
             "skills": [],
             "experience_years": 0,
             "key_achievements": [],
-            "verdict": "Manual review required",
-            "reasoning": "AI analysis unavailable. Please review manually.",
+            "verdict": "[?] Manual Review Required",
+            "summary": "Unable to analyze resume automatically. Please review manually.",
+            "reasoning": "Analysis could not be completed. Manual review is recommended.",
             "strengths": [],
             "gaps": []
         }
 
 
-# Simplified interface for backward compatibility
+# ===== BACKWARD COMPATIBLE API =====
+
 def parse_resume_from_bytes(
     file_content: bytes,
     filename: str,
@@ -600,21 +727,10 @@ def parse_resume_from_bytes(
     minimum_experience: int = 0
 ) -> Dict:
     """
-    Main entry point for resume analysis
-    
-    Args:
-        file_content: PDF bytes
-        filename: Original filename
-        job_description: Job description text
-        job_requirements: Required skills (comma-separated)
-        job_title: Job title
-        minimum_experience: Minimum years required
-    
-    Returns:
-        Dict with analysis results compatible with existing system
+    Main entry point for resume analysis.
+    Backward compatible with existing system.
     """
     
-    # Use AI Gatekeeper
     result = AIGatekeeper.analyze_resume(
         pdf_bytes=file_content,
         job_title=job_title or "Position",
@@ -623,22 +739,20 @@ def parse_resume_from_bytes(
         minimum_experience=minimum_experience
     )
     
-    # Map to existing format for compatibility
+    # Map category to status
     category_to_status = {
         "High Match": "Selected",
         "Potential": "Applied",
         "Reject": "Rejected"
     }
     
-    # Extract personal details
     personal = result.get("personal_details", {})
     
-    # Format for existing system
     return {
         # Core info
-        "summary": result.get("summary", result.get("verdict", "")), # Use summary if available
+        "summary": result.get("summary", ""),
         "skills": result.get("skills", []),
-        "experience": f"{result.get('experience_years', 0)} years" if result.get('experience_years') else "N/A",
+        "experience": f"{result.get('experience_years', 0)} years",
         
         # Personal details
         "name": personal.get("name", "Unknown"),
@@ -658,39 +772,31 @@ def parse_resume_from_bytes(
         
         # Reasoning
         "recommendation": result.get("reasoning", ""),
-        "ai_reasoning": "",  # Avoid duplication in application notes
+        "ai_reasoning": "",
         
         # Achievements
         "achievements": result.get("key_achievements", [])
     }
 
 
-# For backward compatibility
 def analyze_candidate_profile(file_content: bytes, filename: str, job_description: str = "") -> Dict:
     """Legacy wrapper"""
     return parse_resume_from_bytes(file_content, filename, job_description, "", "")
 
 
 if __name__ == "__main__":
-    print("🎯 AI Gatekeeper Testing")
+    print("🎯 AI Gatekeeper - Production Ready")
     print("=" * 60)
     
-    # Test configuration check
     if HF_TOKEN:
-        print("✅ Hugging Face token found")
+        print("✅ Hugging Face token configured")
     else:
-        print("❌ Missing HF_TOKEN in .env")
-        print("   Add: HF_TOKEN=hf_...")
+        print("⚠️  No HF_TOKEN - AI summaries disabled")
     
-    print("\n💡 The AI Gatekeeper will:")
-    print("   1. Read PDFs directly (no text extraction needed)")
-    print("   2. Extract: Personal Details, Skills, Experience")
-    print("   3. Match against Job Requirements")
-    print("   4. Categorize: High Match / Potential / Reject")
-    print("   5. Provide detailed reasoning")
-    
-    print("\n📋 Example Job Matching:")
-    print("   Job: Senior Python Developer")
-    print("   Required: Python, Django, AWS, 5+ years")
-    print("   Resume: Python, React, 7 years")
-    print("   → Category: Potential (has Python & experience, missing Django/AWS)")
+    print("\n📋 This system will:")
+    print("   1. Extract text from PDF")
+    print("   2. Detect ONLY valid technical skills")
+    print("   3. Match against job requirements")  
+    print("   4. Calculate deterministic score (70% skills + 30% experience)")
+    print("   5. Provide clear YES/NO/MAYBE recommendation")
+    print("   6. Show matching and missing skills")

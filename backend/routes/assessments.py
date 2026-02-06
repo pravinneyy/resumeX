@@ -186,6 +186,22 @@ def submit_assessment(job_id: int, data: SubmissionCreate, db: Session = Depends
     app.match_score = final_match_score
     
     db.commit()
+    db.commit()
+
+    # 5. Trigger Scoring Engine (CRITICAL for updating CandidateFinalScore)
+    try:
+        print(f"[submit_assessment] Triggering scoring engine for job {job_id}, candidate {data.candidate_id}")
+        scoring_result = ScoringEngine.calculate_candidate_score(job_id, data.candidate_id, db)
+        ScoringEngine.store_result(scoring_result, job_id, data.candidate_id, db)
+        
+        # Sync Application record with new engine result
+        app.final_grade = scoring_result.final_score
+        app.verdict = scoring_result.decision
+        db.commit()
+        print(f"[submit_assessment] Scoring sync complete. Final Score: {scoring_result.final_score}")
+    except Exception as e:
+        print(f"[⚠️ WARNING] Scoring engine failed in submit_assessment: {e}")
+
     return {"message": "Assessment submitted successfully"}
 
 @router.post("/assessments/psychometric/seed")
@@ -763,6 +779,136 @@ def evaluate_submission(
     return response
 
 
+# --- NEW: MULTI-QUESTION EVALUATION ---
+class QuestionSubmission(BaseModel):
+    problem_id: str
+    code: str
+    language: str = "python"
+
+
+class EvaluateAllRequest(BaseModel):
+    """Request to evaluate all questions at once"""
+    candidate_id: str
+    job_id: int
+    submissions: List[QuestionSubmission]
+
+
+@router.post("/assessments/{job_id}/evaluate-all")
+def evaluate_all_questions(
+    job_id: int,
+    request: EvaluateAllRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    MULTI-QUESTION EVALUATION: Judge all questions and return weighted average score.
+    
+    This endpoint evaluates all submitted code questions at once and calculates
+    a single weighted score out of 100.
+    
+    Each question contributes equally to the final score:
+    - 3 questions = each worth 33.33%
+    - Final score = average of individual question scores
+    
+    Returns:
+        {
+            "evaluation_id": str,
+            "question_results": [...],
+            "individual_scores": [float, ...],
+            "total_score": float (0-100),
+            "verdict": str
+        }
+    """
+    print(f"\n[🎯 EVALUATE ALL QUESTIONS]")
+    print(f"  job_id={job_id}")
+    print(f"  candidate_id={request.candidate_id}")
+    print(f"  num_questions={len(request.submissions)}")
+    
+    # Validate candidate applied to job
+    app = db.query(Application).filter(
+        Application.job_id == job_id,
+        Application.candidate_id == request.candidate_id
+    ).first()
+    if not app:
+        print(f"[❌ ERROR] Candidate {request.candidate_id} not eligible for job {job_id}")
+        raise HTTPException(status_code=403, detail="Candidate not eligible for this job")
+    
+    # Fetch all problems and build problems_data dict
+    problem_ids = [s.problem_id for s in request.submissions]
+    problems = db.query(Problem).filter(Problem.problem_id.in_(problem_ids)).all()
+    problems_data = {
+        p.problem_id: {
+            "function_signature": p.function_signature,
+            "hidden_tests": p.hidden_tests or [],
+            "time_limit": p.time_limit_sec
+        }
+        for p in problems
+    }
+    
+    # Build submissions list
+    submissions = [
+        {
+            "problem_id": s.problem_id,
+            "code": s.code,
+            "language": s.language
+        }
+        for s in request.submissions
+    ]
+    
+    # Call the judge
+    result = JudgingSession.evaluate_all_questions(submissions, problems_data)
+    
+    print(f"[📊 RESULT]")
+    print(f"  evaluation_id={result['evaluation_id']}")
+    print(f"  total_score={result['total_score']}")
+    print(f"  verdict={result['verdict']}")
+    print(f"  individual_scores={result['individual_scores']}")
+    
+    # Store individual evaluations in DB
+    for qr in result["question_results"]:
+        if qr.get("evaluation_id"):
+            evaluation = EvaluationSession(
+                evaluation_id=qr["evaluation_id"],
+                problem_id=qr["problem_id"],
+                candidate_id=request.candidate_id,
+                job_id=job_id,
+                submitted_code=next((s.code for s in request.submissions if s.problem_id == qr["problem_id"]), ""),
+                language="python",
+                total_hidden_tests=qr.get("total_tests", 0),
+                passed_hidden_tests=qr.get("passed_tests", 0),
+                correctness_points=qr.get("correctness_points", 0.0),
+                performance_points=qr.get("performance_points", 0.0),
+                quality_points=qr.get("quality_points", 0.0),
+                penalty_points=0.0,
+                final_score=qr.get("score", 0.0),
+                verdict=qr.get("verdict", "FAILED"),
+                max_execution_time=0.0,
+                evaluated_at=result["evaluated_at"]
+            )
+            db.add(evaluation)
+    
+    db.commit()
+    print(f"[✅ SAVED TO DB] All evaluations stored")
+    
+    # Trigger scoring engine recalculation
+    try:
+        scoring_result = ScoringEngine.calculate_candidate_score(job_id, request.candidate_id, db)
+        ScoringEngine.store_result(scoring_result, job_id, request.candidate_id, db)
+        
+        # Update application record with new score
+        app.final_grade = scoring_result.final_score
+        app.verdict = scoring_result.decision
+        db.commit()
+        
+        print(f"[🎯 SCORING UPDATED]")
+        print(f"  new_final_score={scoring_result.final_score}")
+        print(f"  new_decision={scoring_result.decision}")
+    except Exception as e:
+        print(f"[⚠️ WARNING] Scoring engine failed: {str(e)}. Evaluations still saved.")
+    
+    return result
+
+
+
 @router.get("/evaluation/{evaluation_id}")
 def get_evaluation_details(evaluation_id: str, db: Session = Depends(get_db)):
     """
@@ -1015,6 +1161,8 @@ class ViolationLog(BaseModel):
 
 class AntiCheatLogsRequest(BaseModel):
     session_id: str
+    candidate_id: str = None
+    job_id: int = None
     violations: List[ViolationLog]
 
 
@@ -1024,9 +1172,13 @@ def log_anti_cheat_violations(request: AntiCheatLogsRequest, db: Session = Depen
     Store anti-cheat violation logs from the client.
     These are used for analysis and potential penalties, NOT for blocking.
     """
+    print(f"[📷 ANTI-CHEAT LOG] session={request.session_id}, candidate={request.candidate_id}, job={request.job_id}, violations={len(request.violations)}")
+    
     for violation in request.violations:
         log = AntiCheatLog(
             session_id=request.session_id,
+            candidate_id=request.candidate_id,
+            job_id=request.job_id,
             violation_type=violation.type,
             reason=violation.reason,
             duration=violation.duration,
@@ -1073,7 +1225,7 @@ def get_session_violations(session_id: str, db: Session = Depends(get_db)):
 def get_all_violations(limit: int = 50, db: Session = Depends(get_db)):
     """
     Retrieve latest violations across all sessions.
-    Includes candidate details if linked to an evaluation.
+    Includes candidate details if linked directly or via evaluation.
     """
     violations = db.query(AntiCheatLog).order_by(
         AntiCheatLog.logged_at.desc()
@@ -1083,13 +1235,29 @@ def get_all_violations(limit: int = 50, db: Session = Depends(get_db)):
     for v in violations:
         candidate_name = "Unknown"
         job_title = "Unknown Job"
+        candidate_id_display = v.candidate_id
+        job_id_display = v.job_id
         
-        # Try to fetch candidate info via EvaluationSession
-        if v.evaluation_id:
+        # First, try to use direct candidate_id and job_id
+        if v.candidate_id:
+            candidate = db.query(Candidate).filter(Candidate.id == v.candidate_id).first()
+            if candidate:
+                candidate_name = candidate.name
+        
+        if v.job_id:
+            job = db.query(Job).filter(Job.id == v.job_id).first()
+            if job:
+                job_title = job.title
+        
+        # Fallback: Try to fetch via EvaluationSession if no direct link
+        if candidate_name == "Unknown" and v.evaluation_id:
             eval_sess = db.query(EvaluationSession).filter(
                 EvaluationSession.evaluation_id == v.evaluation_id
             ).first()
             if eval_sess:
+                candidate_id_display = eval_sess.candidate_id
+                job_id_display = eval_sess.job_id
+                
                 candidate = db.query(Candidate).filter(Candidate.id == eval_sess.candidate_id).first()
                 if candidate:
                     candidate_name = candidate.name
@@ -1108,7 +1276,9 @@ def get_all_violations(limit: int = 50, db: Session = Depends(get_db)):
             "timestamp": v.violation_timestamp,
             "logged_at": v.logged_at.isoformat() if v.logged_at else None,
             "candidate_name": candidate_name,
+            "candidate_id": candidate_id_display,
             "job_title": job_title,
+            "job_id": job_id_display,
             "session_id": v.session_id
         })
         
@@ -1614,9 +1784,10 @@ def submit_technical_text(data: TechnicalTextSubmitRequest, db: Session = Depend
     """
     Submit and grade technical text answers.
     
-    Uses deterministic keyword-based grading:
-    - score = (matched_keywords / total_keywords) * 10
-    - Each question scored 0-10
+    Uses AI + Keyword Hybrid grading:
+    - AI evaluates understanding (0-7 pts)
+    - Keywords provide bonus (0-3 pts)
+    - Total per question: 0-10
     
     After grading, triggers score recalculation.
     """
@@ -1635,7 +1806,7 @@ def submit_technical_text(data: TechnicalTextSubmitRequest, db: Session = Depend
         raise HTTPException(status_code=403, detail="Candidate has not applied to this job")
     
     try:
-        # Grade submission
+        # Grade submission (Sync with AI)
         submission = TechnicalTextGrader.grade_submission(
             data.job_id,
             data.candidate_id,

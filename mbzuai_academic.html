@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Academic Resume</title>
+  <style>
+    @page {
+      margin: 0.5in;
+    }
+
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 11pt;
+      margin: 0.5in;
+      line-height: 1.15;
+      color: #000;
+    }
+
+    h1 {
+      font-size: 18pt;
+      font-weight: bold;
+      margin: 0 0 2pt 0;
+      text-align: center;
+    }
+
+    h2 {
+      font-size: 12pt;
+      font-weight: bold;
+      border-bottom: 1px solid #000;
+      margin: 12pt 0 6pt 0;
+      padding-bottom: 2pt;
+      text-transform: uppercase;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 8pt;
+    }
+
+    .contact {
+      font-size: 10pt;
+      color: #333;
+    }
+
+    .contact a {
+      color: #333;
+      text-decoration: none;
+    }
+
+    p {
+      margin: 0 0 6pt 0;
+      text-align: justify;
+    }
+
+    .entry {
+      margin-bottom: 8pt;
+    }
+
+    .entry-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .entry-title {
+      font-weight: bold;
+      font-size: 11pt;
+    }
+
+    .entry-meta {
+      font-size: 10pt;
+      color: #444;
+    }
+
+    .entry-subtitle {
+      font-style: italic;
+      font-size: 10pt;
+      margin-bottom: 2pt;
+    }
+
+    .entry-description {
+      font-size: 10pt;
+      margin-top: 2pt;
+      text-align: justify;
+    }
+
+    .skills-list {
+      margin: 0;
+      padding: 0;
+    }
+
+    ul {
+      margin: 0 0 0 18pt;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 2pt;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <h1>{{name}}</h1>
+    <div class="contact">
+      {{email}} | {{location}} | <a href="{{github}}">GitHub</a> | <a href="{{linkedin}}">LinkedIn</a>
+    </div>
+  </div>
+
+  <h2>Professional Summary</h2>
+  <p>{{summary}}</p>
+
+  <h2>Education</h2>
+  {{education}}
+
+  {{research_section}}
+
+  <h2>Projects</h2>
+  {{projects}}
+
+  <h2>Technical Skills</h2>
+  <p>{{skills}}</p>
+
+  {{work_experience_section}}
+
+  {{hobbies_section}}
+
+  {{references_section}}
+
+</body>
+
+</html>

@@ -10,25 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
 import {
     ArrowLeft, FileText, CheckCircle, XCircle, AlertTriangle,
-    Sparkles, Plus, Trash2, Save, Loader2, Mail, ExternalLink,
+    Sparkles, Plus, Loader2, Mail, ExternalLink,
     Calendar, Award, TrendingUp, Target, AlertCircle
 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ProctoringLogs } from "@/components/recruiter/proctoring-logs"
-import VerdictCard from "@/components/recruiter/VerdictCard"
-import CandidateScoreBadges from "@/components/recruiter/CandidateScoreBadges"
-
-interface PsychometricQ {
-    id: string
-    text: string
-    section: string
-}
+import { useRealtimeApplications } from "@/hooks/useRealtimeApplications"
 
 interface Application {
     id: number
@@ -46,177 +37,65 @@ interface Application {
     status: string
     score: number
     resume_url: string
+    // Assessment scores
+    psychometric_score?: number
+    technical_score?: number
+    coding_score?: number
+    assessment_completed?: boolean
 }
 
 export default function JobDetailsPage() {
     const { jobId } = useParams()
     const router = useRouter()
-    const { getToken } = useAuth()
+    const { getToken, isLoaded } = useAuth() // <--- 2. Get auth helpers
 
-    const [applications, setApplications] = useState<Application[]>([])
+    const [initialApplications, setInitialApplications] = useState<Application[]>([])
     const [selectedApp, setSelectedApp] = useState<Application | null>(null)
     const [updating, setUpdating] = useState(false)
 
-    const [psychometricBank, setPsychometricBank] = useState<PsychometricQ[]>([])
+    // Realtime applications for this job
+    const applications = useRealtimeApplications(initialApplications, { jobId: Number(jobId) })
 
-    // Assessment State
-    const [assessment, setAssessment] = useState({
-        title: "Technical Assessment",
-        duration_minutes: 60,
-        questions: [
-            {
-                title: "Two Sum",
-                problem_text: "Given an array of integers `nums` and an integer `target`, return indices of the two numbers such that they add up to `target`.",
-                test_input: "nums = [2,7,11,15], target = 9",
-                test_output: "[0,1]",
-                points: 10
-            }
-        ],
-        psychometric_ids: [] as number[]
-    })
-
-    // Fetch psychometric bank
     useEffect(() => {
-        const loadBank = async () => {
-            try {
-                const token = await getToken()
-                const res = await fetch("http://127.0.0.1:8000/api/assessments/psychometric/questions?limit=1000", {
-                    headers: { "Authorization": `Bearer ${token}` }
-                })
-                if (res.ok) {
-                    const data = await res.json()
-                    // Extract IDs from format "db_123" -> 123 for easier matching if needed
-                    // But API returns "db_123". Let's use string IDs in frontend for matching.
-                    // But backend expects Int IDs in psychometric_ids list.
-                    // So we need to map.
-                    if (data.questions) {
-                        setPsychometricBank(data.questions.map((q: any) => ({
-                            ...q,
-                            numericId: parseInt(q.id.replace("db_", ""))
-                        })))
-                    }
-                }
-            } catch (e) {
-                console.error(e)
-            }
+        if (isLoaded && jobId) {
+            fetchApplications()
         }
-        if (jobId) loadBank()
-    }, [jobId, getToken])
-
-    const togglePsychometric = (numericId: number) => {
-        setAssessment(prev => {
-            const current = prev.psychometric_ids || [];
-            if (current.includes(numericId)) {
-                return { ...prev, psychometric_ids: current.filter(id => id !== numericId) }
-            } else {
-                return { ...prev, psychometric_ids: [...current, numericId] }
-            }
-        })
-    }
-
-    useEffect(() => {
-        fetchApplications()
-    }, [jobId, getToken])
-
-    useEffect(() => {
-        // Fetch assessment for this job on mount / when jobId changes
-        if (jobId) fetchAssessment()
-    }, [jobId, getToken])
-
-    // Refresh assessment when component mounts or route changes
-    useEffect(() => {
-        const handleFocus = () => {
-            if (jobId) {
-                console.log("Window focus detected, refetching assessment...")
-                fetchAssessment()
-            }
-        }
-
-        // Refetch immediately to catch updates from redirect
-        if (jobId) {
-            const timer = setTimeout(() => {
-                console.log("Delayed refetch after route change...")
-                fetchAssessment()
-            }, 300)
-            return () => clearTimeout(timer)
-        }
-
-        window.addEventListener('focus', handleFocus)
-        return () => window.removeEventListener('focus', handleFocus)
-    }, [jobId])
+    }, [isLoaded, jobId])
 
     const fetchApplications = async () => {
         try {
-            const token = await getToken()
+            const token = await getToken() // <--- 3. Get Token
             const res = await fetch(`http://127.0.0.1:8000/api/jobs/${jobId}/applications`, {
-                headers: { "Authorization": `Bearer ${token}` }
+                headers: {
+                    "Authorization": `Bearer ${token}` // <--- 4. Attach Header
+                }
             })
             if (res.ok) {
                 const data = await res.json()
                 console.log("Fetched applications:", data)
-                setApplications(data)
+                setInitialApplications(Array.isArray(data) ? data : [])
             }
         } catch (e) {
             console.error("Failed to fetch applications:", e)
         }
     }
 
-    const fetchAssessment = async () => {
-        try {
-            console.log(`[fetchAssessment] Fetching assessment for job ID: ${jobId}`)
-            const token = await getToken()
-            const res = await fetch(`http://127.0.0.1:8000/api/assessments/${jobId}`, {
-                headers: { "Authorization": `Bearer ${token}` }
-            })
-            console.log(`[fetchAssessment] Response Status: ${res.status}`)
-
-            if (res.ok) {
-                const data = await res.json()
-                console.log("[fetchAssessment] Fetched assessment data:", JSON.stringify(data, null, 2))
-                setAssessment({
-                    title: data.title || "Technical Assessment",
-                    duration_minutes: data.duration_minutes || 60,
-                    questions: Array.isArray(data.questions) ? data.questions : [],
-                    psychometric_ids: data.psychometric_ids || []
-                })
-                console.log(`[fetchAssessment] Successfully loaded ${data.questions?.length || 0} questions`)
-            } else {
-                console.warn(`[fetchAssessment] No assessment found for job ${jobId} (404)`)
-                // Reset to empty assessment when 404
-                setAssessment({
-                    title: "Technical Assessment",
-                    duration_minutes: 60,
-                    questions: [],
-                    psychometric_ids: []
-                })
-            }
-        } catch (err) {
-            console.error("[fetchAssessment] Error:", err)
-            // On error, also reset to empty state to prevent stale data
-            setAssessment({
-                title: "Technical Assessment",
-                duration_minutes: 60,
-                questions: [],
-                psychometric_ids: []
-            })
-        }
-    }
-
     const updateStatus = async (appId: number, newStatus: string) => {
         setUpdating(true)
         try {
-            const token = await getToken()
+            const token = await getToken() // <--- Get Token
             const res = await fetch(`http://127.0.0.1:8000/api/applications/${appId}/status`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
+                    "Authorization": `Bearer ${token}` // <--- Attach Header
                 },
                 body: JSON.stringify({ status: newStatus })
             })
 
             if (res.ok) {
-                setApplications(apps => apps.map(a => a.id === appId ? { ...a, status: newStatus } : a))
+                // Optimistic update will be handled by realtime
+                fetchApplications()
                 setSelectedApp(prev => prev ? { ...prev, status: newStatus } : null)
             } else {
                 alert("Failed to update status")
@@ -225,42 +104,6 @@ export default function JobDetailsPage() {
             console.error(error)
         } finally {
             setUpdating(false)
-        }
-    }
-
-    const handleSaveAssessment = async () => {
-        if (!assessment.questions.length) return alert("Add at least one question")
-        try {
-            const payload = { job_id: jobId, ...assessment }
-            console.log("[handleSaveAssessment] Sending payload:", JSON.stringify(payload, null, 2))
-
-            const token = await getToken()
-            const res = await fetch("http://127.0.0.1:8000/api/assessments", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            })
-
-            console.log("[handleSaveAssessment] Response Status:", res.status)
-            const responseData = await res.json()
-            console.log("[handleSaveAssessment] Response Data:", responseData)
-
-            if (res.ok) {
-                alert("Assessment Saved Successfully!")
-                console.log("[handleSaveAssessment] Refreshing assessment...")
-                // Refresh local assessment state so dashboard reflects new questions
-                fetchAssessment()
-            } else {
-                const errorMsg = responseData.detail || JSON.stringify(responseData)
-                console.error("[handleSaveAssessment] API Error:", errorMsg)
-                alert("Failed: " + errorMsg)
-            }
-        } catch (e) {
-            console.error("[handleSaveAssessment] Exception:", e)
-            alert("Error: " + String(e))
         }
     }
 
@@ -293,17 +136,22 @@ export default function JobDetailsPage() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-6 animate-fade-in pb-20">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => router.back()}>
-                    <ArrowLeft className="w-5 h-5" />
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                        <ArrowLeft className="w-5 h-5" />
+                    </Button>
+                    <h1 className="text-2xl font-bold">Job Dashboard</h1>
+                </div>
+                <Button onClick={() => router.push(`/recruiter/jobs/${jobId}/create-assessment`)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Assessment
                 </Button>
-                <h1 className="text-2xl font-bold">Job Dashboard</h1>
             </div>
 
             <Tabs defaultValue="applicants" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="applicants">Applicants</TabsTrigger>
-                    <TabsTrigger value="settings">Assessment</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="applicants">
@@ -328,7 +176,7 @@ export default function JobDetailsPage() {
                                                 <div className="flex items-center gap-4 flex-1">
                                                     <Avatar className="h-12 w-12">
                                                         <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                                                            {app.name.substring(0, 2).toUpperCase()}
+                                                            {app.name ? app.name.substring(0, 2).toUpperCase() : '??'}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <div className="flex-1">
@@ -347,17 +195,8 @@ export default function JobDetailsPage() {
                                                             )}
                                                         </div>
                                                         <p className="text-sm text-muted-foreground mb-1">{app.email}</p>
-
-                                                        {/* Scoring Engine Scores */}
-                                                        <div className="mb-1">
-                                                            <CandidateScoreBadges
-                                                                jobId={Number(jobId)}
-                                                                candidateId={app.candidate_id}
-                                                            />
-                                                        </div>
-
                                                         <p className="text-xs text-muted-foreground line-clamp-1">
-                                                            {app.ai_summary.substring(0, 100)}...
+                                                            {app.ai_summary ? app.ai_summary.substring(0, 100) : 'No summary available'}...
                                                         </p>
                                                     </div>
                                                 </div>
@@ -378,202 +217,6 @@ export default function JobDetailsPage() {
                         </CardContent>
                     </Card>
                 </TabsContent>
-
-                <TabsContent value="settings" className="space-y-4">
-                    {/* Assessment Status Card */}
-                    <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
-                        <CardHeader>
-                            <CardTitle className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <FileText className="w-5 h-5 text-blue-600" />
-                                    Assessment Configuration
-                                </div>
-                                {assessment.questions.length > 0 && (
-                                    <Badge className="bg-green-600">
-                                        <CheckCircle className="w-3 h-3 mr-1" />
-                                        {assessment.questions.length} {assessment.questions.length === 1 ? 'Question' : 'Questions'}
-                                    </Badge>
-                                )}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div>
-                                <h3 className="font-semibold mb-2">Title: {assessment.title || '(Not Set)'}</h3>
-                                <p className="text-sm text-muted-foreground">Duration: {assessment.duration_minutes} minutes</p>
-                            </div>
-
-                            {assessment.questions.length > 0 && (
-                                <div className="space-y-3 max-h-48 overflow-y-auto border-t pt-4">
-                                    <h4 className="font-semibold text-sm">Questions Preview:</h4>
-                                    {assessment.questions.map((q, idx) => (
-                                        <div key={idx} className="text-sm p-2 bg-white/50 dark:bg-black/20 rounded">
-                                            <p className="font-medium">{idx + 1}. {q.title || '(Untitled)'}</p>
-                                            <p className="text-xs text-muted-foreground line-clamp-1">{q.problem_text}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <Button
-                                onClick={() => router.push(`/recruiter/jobs/${jobId}/create-assessment`)}
-                                className="w-full bg-blue-600 hover:bg-blue-700"
-                            >
-                                <Plus className="w-4 h-4 mr-2" />
-                                {assessment.questions.length > 0 ? 'Edit Assessment' : 'Create Assessment'}
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    {/* Assessment Details - Shows from Database */}
-                    {assessment.questions.length > 0 ? (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base flex items-center justify-between">
-                                    <span>Assessment Details</span>
-                                    <Badge variant="outline">Database Record</Badge>
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
-                                {/* Full Question List */}
-                                <div>
-                                    <h4 className="font-semibold mb-4">All Questions ({assessment.questions.length})</h4>
-                                    <div className="space-y-3">
-                                        {assessment.questions.map((q: any, idx: number) => (
-                                            <div key={idx} className="border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <p className="font-semibold text-sm">Question {idx + 1}: {q.title}</p>
-                                                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{q.problem_text}</p>
-                                                    </div>
-                                                    <Badge variant="secondary" className="shrink-0 ml-2">
-                                                        {q.points} pts
-                                                    </Badge>
-                                                </div>
-
-                                                {q.test_input && (
-                                                    <div className="bg-muted/50 p-2 rounded text-xs font-mono">
-                                                        <p className="text-muted-foreground font-semibold">Input:</p>
-                                                        <p className="text-foreground">{q.test_input}</p>
-                                                    </div>
-                                                )}
-
-                                                {q.test_output && (
-                                                    <div className="bg-muted/50 p-2 rounded text-xs font-mono">
-                                                        <p className="text-muted-foreground font-semibold">Expected Output:</p>
-                                                        <p className="text-foreground">{q.test_output}</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ) : (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">How It Works</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3 text-sm">
-                                <div className="flex gap-3">
-                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center font-semibold">1</div>
-                                    <div>
-                                        <p className="font-semibold">Create or Edit Assessment</p>
-                                        <p className="text-muted-foreground text-xs">Click the button above to configure test title, duration, and add coding challenges</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3">
-                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center font-semibold">2</div>
-                                    <div>
-                                        <p className="font-semibold">Set Culture Fit Preferences (Optional)</p>
-                                        <p className="text-muted-foreground text-xs">Select personality traits that matter for this role</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3">
-                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center font-semibold">3</div>
-                                    <div>
-                                        <p className="font-semibold">Publish Exam</p>
-                                        <p className="text-muted-foreground text-xs">Once published, candidates will see these questions in their IDE</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
-                </TabsContent>
-
-                <TabsContent value="settings">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Assessment Configuration</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Assessment Title</Label>
-                                    <Input
-                                        value={assessment.title}
-                                        onChange={(e) => setAssessment(prev => ({ ...prev, title: e.target.value }))}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Duration (Minutes)</Label>
-                                    <Input
-                                        type="number"
-                                        value={assessment.duration_minutes}
-                                        onChange={(e) => setAssessment(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) || 60 }))}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h3 className="font-semibold text-sm">Technical Questions ({assessment.questions.length})</h3>
-                                <div className="p-4 border rounded-md bg-muted/20">
-                                    {assessment.questions.map((q, i) => (
-                                        <div key={i} className="mb-2 p-2 bg-card border rounded shadow-sm text-sm">
-                                            <div className="font-medium">{q.title}</div>
-                                            <div className="text-muted-foreground text-xs truncate">{q.problem_text}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <h3 className="font-semibold text-sm">Psychometric Questions ({assessment.psychometric_ids?.length || 0} selected)</h3>
-                                <div className="text-xs text-muted-foreground mb-2">Select questions to include in the Culture Fit section. If none selected, random questions will be used.</div>
-                                <ScrollArea className="h-[300px] border rounded-md p-4">
-                                    <div className="space-y-3">
-                                        {psychometricBank.map((q: any) => (
-                                            <div key={q.id} className="flex items-start space-x-2 pb-2 border-b last:border-0">
-                                                <Checkbox
-                                                    id={q.id}
-                                                    checked={assessment.psychometric_ids?.includes(q.numericId)}
-                                                    onCheckedChange={() => togglePsychometric(q.numericId)}
-                                                />
-                                                <div className="grid gap-1.5 leading-none">
-                                                    <label
-                                                        htmlFor={q.id}
-                                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                                                    >
-                                                        {q.text}
-                                                    </label>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {q.section}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </ScrollArea>
-                            </div>
-
-                            <div className="flex justify-end pt-4">
-                                <Button onClick={handleSaveAssessment} className="gap-2">
-                                    <Save className="w-4 h-4" /> Save Changes
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </TabsContent>
             </Tabs>
 
             <Sheet open={!!selectedApp} onOpenChange={() => setSelectedApp(null)}>
@@ -586,12 +229,12 @@ export default function JobDetailsPage() {
                                     <div className="flex items-start gap-4">
                                         <Avatar className="h-16 w-16 border-2 border-muted shadow-md">
                                             <AvatarFallback className="text-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold">
-                                                {selectedApp.name.replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase() || '??'}
+                                                {(selectedApp.name || '').replace(/[^a-zA-Z]/g, '').substring(0, 2).toUpperCase() || '??'}
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="flex-1 min-w-0">
                                             <SheetTitle className="text-xl mb-1 truncate">
-                                                {selectedApp.name.replace(/[^a-zA-Z0-9\s.'-]/g, '').trim() || 'Unknown'}
+                                                {(selectedApp.name || '').replace(/[^a-zA-Z0-9\s.'-]/g, '').trim() || 'Unknown'}
                                             </SheetTitle>
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
                                                 <Mail className="w-4 h-4 shrink-0" />
@@ -652,6 +295,89 @@ export default function JobDetailsPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Assessment Scores Breakdown */}
+                                {(() => {
+                                    const hasAssessmentScores =
+                                        selectedApp.psychometric_score != null ||
+                                        selectedApp.technical_score != null ||
+                                        selectedApp.coding_score != null;
+
+                                    if (!hasAssessmentScores && selectedApp.score === 0) {
+                                        // No assessment taken yet
+                                        return (
+                                            <div className="space-y-3 p-4 bg-gradient-to-br from-gray-50 to-slate-50 dark:from-gray-950/20 dark:to-slate-950/20 rounded-xl border border-gray-200/50 dark:border-gray-800/30">
+                                                <h3 className="font-semibold flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                                                    <AlertTriangle className="w-4 h-4" />
+                                                    Assessment Pending
+                                                </h3>
+                                                <p className="text-sm text-muted-foreground">
+                                                    This candidate has not completed the assessment yet.
+                                                    The combined score shown is based on resume skill matching.
+                                                </p>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                                    Awaiting assessment completion...
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div className="space-y-3 p-4 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20 rounded-xl border border-purple-200/50 dark:border-purple-800/30">
+                                            <h3 className="font-semibold flex items-center gap-2 text-purple-600 dark:text-purple-400">
+                                                <TrendingUp className="w-4 h-4" />
+                                                Assessment Performance
+                                            </h3>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {/* Psychometric Score */}
+                                                <div className="bg-white/50 dark:bg-black/20 p-3 rounded-lg border border-purple-200/30">
+                                                    <p className="text-xs text-muted-foreground mb-1">Psychometric</p>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-2xl font-bold text-purple-600">
+                                                            {selectedApp.psychometric_score ?? '--'}
+                                                        </span>
+                                                        <span className="text-sm text-muted-foreground">/25</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Technical Score */}
+                                                <div className="bg-white/50 dark:bg-black/20 p-3 rounded-lg border border-blue-200/30">
+                                                    <p className="text-xs text-muted-foreground mb-1">Technical</p>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-2xl font-bold text-blue-600">
+                                                            {selectedApp.technical_score ?? '--'}
+                                                        </span>
+                                                        <span className="text-sm text-muted-foreground">/25</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Coding Score */}
+                                                <div className="bg-white/50 dark:bg-black/20 p-3 rounded-lg border border-green-200/30">
+                                                    <p className="text-xs text-muted-foreground mb-1">Coding</p>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-2xl font-bold text-green-600">
+                                                            {selectedApp.coding_score ?? '--'}
+                                                        </span>
+                                                        <span className="text-sm text-muted-foreground">/40</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Combined Total */}
+                                                <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 p-3 rounded-lg border-2 border-amber-300/50">
+                                                    <p className="text-xs text-muted-foreground mb-1">Combined</p>
+                                                    <div className="flex items-baseline gap-1">
+                                                        <span className="text-2xl font-bold text-amber-600">{selectedApp.score || 0}</span>
+                                                        <span className="text-sm text-muted-foreground">/100</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mt-2 italic">
+                                                💡 Scores: Psychometric (25%), Technical (25%), Coding (40%), Behavioral (10%)
+                                            </p>
+                                        </div>
+                                    );
+                                })()}
 
                                 {/* Experience */}
                                 {selectedApp.ai_experience && selectedApp.ai_experience !== "N/A" && (
@@ -751,18 +477,6 @@ export default function JobDetailsPage() {
                                         </div>
                                     </div>
                                 )}
-
-                                {/* Assessment Verdict Card */}
-                                <VerdictCard
-                                    jobId={Number(jobId)}
-                                    candidateId={selectedApp.candidate_id}
-                                />
-
-                                {/* Proctoring Logs */}
-                                <ProctoringLogs
-                                    candidateId={selectedApp.candidate_id}
-                                    jobId={Number(jobId)}
-                                />
 
                                 {/* Documents */}
                                 <div className="space-y-2">

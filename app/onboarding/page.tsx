@@ -16,9 +16,9 @@ export default function OnboardingPage() {
   }, [role])
 
   return (
-    <div className="min-h-screen bg-[#2d1010] flex flex-col items-center justify-center text-white">
-      <Loader2 className="w-12 h-12 animate-spin text-[#ff8080] mb-4" />
-      <h2 className="text-xl font-semibold">Setting up your {role} profile...</h2>
+    // This matches your app background exactly, making the transition seamless
+    <div className="min-h-screen bg-[#1a0808] flex items-center justify-center">
+      <Loader2 className="w-10 h-10 animate-spin text-[#e8a0a0]" />
     </div>
   )
 }

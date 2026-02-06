@@ -21,7 +21,9 @@ interface GlobalViolation {
     timestamp: number
     logged_at: string
     candidate_name: string
+    candidate_id?: string
     job_title: string
+    job_id?: number
     session_id: string
 }
 
@@ -92,6 +94,7 @@ export default function LogsPage() {
     const fetchLogs = async () => {
         setLoading(true)
         try {
+            // URL already matches backend default
             const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/all-violations?limit=100")
             if (res.ok) {
                 const data = await res.json()
@@ -101,6 +104,21 @@ export default function LogsPage() {
             console.error("Failed to fetch logs:", error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    const clearLogs = async () => {
+        if (!confirm("Are you sure you want to delete all security logs? This cannot be undone.")) return
+
+        try {
+            const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/clear-logs", {
+                method: "DELETE"
+            })
+            if (res.ok) {
+                setViolations([])
+            }
+        } catch (error) {
+            console.error("Failed to clear logs:", error)
         }
     }
 
@@ -130,10 +148,16 @@ export default function LogsPage() {
                         Monitor active assessments and review flagged suspicious activities.
                     </p>
                 </div>
-                <Button onClick={fetchLogs} variant="outline" size="sm">
-                    <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={clearLogs} variant="destructive" size="sm">
+                        <UserX className="w-4 h-4 mr-2" />
+                        Clear Logs
+                    </Button>
+                    <Button onClick={fetchLogs} variant="outline" size="sm">
+                        <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </Button>
+                </div>
             </div>
 
             <Card>
@@ -205,8 +229,12 @@ export default function LogsPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <p className="font-medium">{v.candidate_name}</p>
-                                                    <p className="text-xs text-muted-foreground">{v.job_title}</p>
+                                                    <p className="font-medium">
+                                                        {v.candidate_name !== "Unknown" ? v.candidate_name : (v.candidate_id ? `ID: ${v.candidate_id.substring(0, 12)}...` : "Unknown")}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {v.job_title !== "Unknown Job" ? v.job_title : (v.job_id ? `Job #${v.job_id}` : "Unknown Job")}
+                                                    </p>
                                                 </td>
                                                 <td className="px-6 py-4 text-muted-foreground">
                                                     <div className="flex items-center gap-1.5">
