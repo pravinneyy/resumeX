@@ -14,12 +14,13 @@ import { Progress } from "@/components/ui/progress"
 import {
     ArrowLeft, FileText, CheckCircle, XCircle, AlertTriangle,
     Sparkles, Plus, Loader2, Mail, ExternalLink,
-    Calendar, Award, TrendingUp, Target, AlertCircle
+    Calendar, Award, TrendingUp, Target, AlertCircle, Upload
 } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useRealtimeApplications } from "@/hooks/useRealtimeApplications"
+import { BulkUpload } from "@/components/recruiter/bulk-upload"
 
 interface Application {
     id: number
@@ -152,6 +153,10 @@ export default function JobDetailsPage() {
             <Tabs defaultValue="applicants" className="space-y-4">
                 <TabsList>
                     <TabsTrigger value="applicants">Applicants</TabsTrigger>
+                    <TabsTrigger value="bulk-upload" className="flex items-center gap-2">
+                        <Upload className="w-4 h-4" />
+                        Bulk Upload
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="applicants">
@@ -216,6 +221,14 @@ export default function JobDetailsPage() {
                             )}
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="bulk-upload">
+                    <BulkUpload
+                        jobId={Number(jobId)}
+                        jobTitle="this position"
+                        onComplete={() => fetchApplications()}
+                    />
                 </TabsContent>
             </Tabs>
 

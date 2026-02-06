@@ -7,7 +7,7 @@ from db import engine, Base
 import models 
 
 # FIX: Import 'applications' and 'admin'
-from routes import auth, jobs, candidates, assessments, applications, admin, candidate_analysis, weights, candidate_applications, resume_generator, anti_cheat
+from routes import auth, jobs, candidates, assessments, applications, admin, candidate_analysis, weights, candidate_applications, resume_generator, anti_cheat, bulk_upload
 
 
 @asynccontextmanager
@@ -56,6 +56,7 @@ app.include_router(weights.router, prefix="/api", tags=["Weights"])
 app.include_router(candidate_applications.router, prefix="/api", tags=["Candidate Applications"])
 app.include_router(resume_generator.router, prefix="/api", tags=["Resume Generator"])
 app.include_router(anti_cheat.router, prefix="/api", tags=["Anti Cheat"])
+app.include_router(bulk_upload.router, prefix="/api", tags=["Bulk Upload"])
 
 @app.get("/")
 def home():

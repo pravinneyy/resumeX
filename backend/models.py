@@ -22,6 +22,17 @@ class Candidate(Base):
     resume_url = Column(String)
     parsed_summary = Column(Text)
     
+    # Enhanced ATS fields
+    education_level = Column(String)  # bachelor, master, phd, associate, high_school
+    education_field = Column(String)  # computer science, engineering, etc.
+    education_institution = Column(String)
+    graduation_year = Column(Integer)
+    location_city = Column(String)
+    location_country = Column(String)
+    experience_years = Column(Integer, default=0)
+    job_titles = Column(Text)  # Comma-separated previous job titles
+    soft_skills = Column(Text)  # Comma-separated soft skills
+    
     applications = relationship("Application", back_populates="candidate")
 
 # --- JOBS & APPLICATIONS ---
@@ -35,6 +46,16 @@ class Job(Base):
     salary_range = Column(String)
     requirements = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Enhanced ATS Hard Gates
+    min_experience = Column(Integer, default=0)  # Minimum years required
+    required_education = Column(String)  # bachelor, master, phd, any
+    must_have_skills = Column(Text)  # Comma-separated HARD requirements (any missing = reject)
+    nice_to_have_skills = Column(Text)  # Comma-separated optional skills
+    location_requirement = Column(String, default="any")  # remote, onsite, hybrid, any
+    allowed_locations = Column(Text)  # Comma-separated locations (if onsite/hybrid)
+    auto_advance_threshold = Column(Integer, default=75)  # Score threshold for auto-assessment
+    auto_reject_threshold = Column(Integer, default=40)  # Score threshold for auto-reject
     
     recruiter = relationship("Recruiter", back_populates="jobs")
     applications = relationship("Application", back_populates="job")
@@ -54,6 +75,13 @@ class Application(Base):
     final_grade = Column(Float, default=0.0)
     verdict = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
+    
+    # Enhanced ATS fields
+    source = Column(String, default="direct")  # direct, bulk_upload, referral
+    bulk_upload_id = Column(Integer, nullable=True)  # Reference to bulk upload job
+    screening_score = Column(Integer)  # ATS screening score (before assessment)
+    hard_gate_passed = Column(Boolean, default=True)
+    rejection_reasons = Column(Text)  # JSON array if rejected
 
     job = relationship("Job", back_populates="applications")
     candidate = relationship("Candidate", back_populates="applications")
@@ -312,3 +340,88 @@ class CandidateFinalScore(Base):
     
     job = relationship("Job")
     candidate = relationship("Candidate")
+
+
+# --- BULK UPLOAD TRACKING ---
+class BulkUploadJob(Base):
+    """
+    Tracks bulk resume upload jobs.
+    Allows recruiters to upload hundreds of resumes at once.
+    """
+    __tablename__ = "bulk_upload_jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    recruiter_id = Column(String, ForeignKey("recruiters.id"), nullable=False)
+    
+    # Progress tracking
+    total_resumes = Column(Integer, default=0)
+    processed = Column(Integer, default=0)
+    passed = Column(Integer, default=0)
+    rejected = Column(Integer, default=0)
+    errors = Column(Integer, default=0)
+    
+    # Status: pending, processing, completed, failed
+    status = Column(String, default="pending")
+    
+    # Configuration
+    auto_advance_threshold = Column(Integer, default=75)
+    auto_reject_threshold = Column(Integer, default=40)
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    
+    # Error details
+    error_message = Column(Text)
+    
+    job = relationship("Job")
+    recruiter = relationship("Recruiter")
+    results = relationship("BulkUploadResult", back_populates="bulk_job")
+
+
+class BulkUploadResult(Base):
+    """
+    Individual resume processing result within a bulk upload.
+    """
+    __tablename__ = "bulk_upload_results"
+    id = Column(Integer, primary_key=True, index=True)
+    bulk_job_id = Column(Integer, ForeignKey("bulk_upload_jobs.id"), nullable=False)
+    
+    # File info
+    filename = Column(String)
+    file_size_bytes = Column(Integer)
+    
+    # Candidate linkage
+    candidate_id = Column(String, ForeignKey("candidates.id"), nullable=True)
+    application_id = Column(Integer, ForeignKey("applications.id"), nullable=True)
+    
+    # Status: pending, processing, passed, rejected, error
+    status = Column(String, default="pending")
+    
+    # Scoring breakdown
+    match_score = Column(Integer)
+    skill_score = Column(Float)
+    experience_score = Column(Float)
+    education_score = Column(Float)
+    location_score = Column(Float)
+    
+    # Decision details
+    decision = Column(String)  # ADVANCE, REVIEW, REJECT
+    rejection_reasons = Column(Text)  # JSON array
+    passed_hard_gates = Column(Boolean, default=False)
+    
+    # Extracted info preview
+    candidate_name = Column(String)
+    candidate_email = Column(String)
+    detected_skills = Column(Text)
+    experience_years = Column(Integer)
+    
+    # Performance
+    processing_time_ms = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    processed_at = Column(DateTime(timezone=True))
+    
+    bulk_job = relationship("BulkUploadJob", back_populates="results")
+    candidate = relationship("Candidate")
+    application = relationship("Application")

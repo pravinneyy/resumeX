@@ -7,8 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, ArrowRight, Send, Clock, Loader2, MessageSquare, AlertCircle, ChevronLeft } from "lucide-react"
+import { ArrowLeft, ArrowRight, Send, Clock, Loader2, MessageSquare, AlertCircle, ChevronLeft, Camera, CameraOff, ShieldAlert } from "lucide-react"
 import AssessmentTabs from "@/components/candidate/AssessmentTabs"
+import { useEnhancedAntiCheat } from "@/hooks/useEnhancedAntiCheat"
+import { toast } from "sonner"
+import { useExam } from "@/contexts/ExamContext"
 
 interface TechnicalQuestion {
     id: number
@@ -30,6 +33,73 @@ export default function TechnicalTextPage() {
     const [submitting, setSubmitting] = useState(false)
     const [timeLeft, setTimeLeft] = useState(1800) // 30 minutes default
     const [hasStarted, setHasStarted] = useState(false)
+
+    // ===== PROCTORING: Anti-Cheat Hook =====
+    const [sessionId] = useState(() => `technical_${Date.now()}`)
+    const [cameraLoading, setCameraLoading] = useState(true)
+    const [cameraError, setCameraError] = useState<string | null>(null)
+
+    const antiCheat = useEnhancedAntiCheat({
+        sessionId,
+        enabled: true,
+        candidateId: user?.id,
+        jobId: jobId ? parseInt(jobId as string) : undefined,
+        maxViolations: 10,
+        onViolation: (violation, count) => {
+            console.log(`[TechnicalText] Violation #${count}:`, violation.type)
+            if (count >= 5) {
+                toast.error("⚠️ Multiple violations detected", {
+                    description: "Your activity is being monitored."
+                })
+            }
+        },
+    })
+
+    // Initialize camera on mount
+    useEffect(() => {
+        const initCamera = async () => {
+            try {
+                setCameraLoading(true)
+                await antiCheat.initializeCamera()
+                setCameraLoading(false)
+            } catch (error: any) {
+                console.error("[TechnicalText] Camera error:", error)
+                setCameraError(error?.message || "Camera access failed")
+                setCameraLoading(false)
+            }
+        }
+
+        // Small delay to ensure DOM is ready
+        const timer = setTimeout(initCamera, 500)
+        return () => clearTimeout(timer)
+    }, [])
+
+    // Cleanup camera on unmount
+    useEffect(() => {
+        return () => {
+            antiCheat.stopCamera()
+        }
+    }, [])
+
+    // ===== EXAM LOCKDOWN MODE =====
+    const { startExam, endExam, isExamActive } = useExam()
+
+    // Activate lockdown mode when page loads
+    useEffect(() => {
+        if (!loading && questions.length >= 0 && !isExamActive && jobId) {
+            startExam(parseInt(jobId as string), "technical", timeLeft)
+            console.log("[TechnicalText] Exam lockdown mode activated")
+        }
+    }, [loading, questions, isExamActive, jobId, timeLeft, startExam])
+
+    // End exam on unmount (when navigating to next section)
+    useEffect(() => {
+        return () => {
+            if (isExamActive) {
+                endExam("completed")
+            }
+        }
+    }, [isExamActive, endExam])
 
     // Fetch questions on mount
     useEffect(() => {
@@ -322,13 +392,46 @@ export default function TechnicalTextPage() {
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
             {/* Header */}
             <div className="border-b border-white/10 bg-black/20 px-6 py-3 sticky top-0 z-10 backdrop-blur-md flex items-center justify-between">
-                <Button variant="ghost" size="sm" onClick={() => router.push('/candidate/interviews')} className="text-white/60 hover:text-white">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                        if (isExamActive) {
+                            const confirmed = window.confirm("⚠️ You are in an active exam. Are you sure you want to exit? Your progress will be saved.");
+                            if (!confirmed) return;
+                            endExam("completed");
+                        }
+                        router.push('/candidate/interviews');
+                    }}
+                    className="text-white/60 hover:text-white"
+                >
                     <ChevronLeft className="w-4 h-4 mr-2" /> Exit
                 </Button>
 
                 <AssessmentTabs jobId={jobId as string} />
 
                 <div className="flex items-center gap-4">
+                    {/* Proctoring Status Indicator */}
+                    <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs border ${antiCheat.cameraActive ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-red-500/20 text-red-400 border-red-500/50'}`}>
+                        {cameraLoading ? (
+                            <>
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Camera...</span>
+                            </>
+                        ) : antiCheat.cameraActive ? (
+                            <>
+                                <Camera className="w-3 h-3" />
+                                <span>Proctored</span>
+                            </>
+                        ) : (
+                            <>
+                                <CameraOff className="w-3 h-3" />
+                                <span>No Camera</span>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Timer */}
                     <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono border ${timeLeft < 300 ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/70 border-white/10'}`}>
                         <Clock className="w-3 h-3" /> {formatTime(timeLeft)}
                     </div>

@@ -304,70 +304,93 @@ export function useAntiCheat(sessionId: string, enabled: boolean = true, candida
     }
   }, [enabled, logViolation])
 
-  // ===== 3. COPY / PASTE / KEYBOARD DETECTION =====
+  // ===== 3. SMART COPY / PASTE DETECTION =====
+  // Track internal clipboard to allow internal copy-paste, only flag external pastes
+  const internalClipboardRef = useRef<string>("")
+
   useEffect(() => {
     if (!enabled) return
 
+    // Track what candidate copies from within the IDE
     const handleCopy = (e: ClipboardEvent) => {
-      // Only log if text was actually selected/copied from the editor
-      const selectedText = window.getSelection()?.toString()
-      if (selectedText && selectedText.length > 0) {
-        logViolation({
-          type: "COPY_ATTEMPT",
-          context: "EDITOR",
-          timestamp: Date.now(),
-        })
-      }
-    }
-
-    const handlePaste = (e: ClipboardEvent) => {
-      // Only log if paste is happening in the editor (has focus)
-      const target = e.target as HTMLElement
-      if (target?.tagName === "TEXTAREA" || target?.tagName === "INPUT" || target?.closest('[contenteditable]')) {
-        logViolation({
-          type: "PASTE_ATTEMPT",
-          context: "EDITOR",
-          timestamp: Date.now(),
-        })
+      const selection = window.getSelection()?.toString() || ""
+      if (selection.length > 0) {
+        // Store copied content to compare with paste
+        internalClipboardRef.current = selection
+        console.log("[AntiCheat] Internal copy tracked (allowed)")
       }
     }
 
     const handleCut = (e: ClipboardEvent) => {
-      const selectedText = window.getSelection()?.toString()
-      if (selectedText && selectedText.length > 0) {
+      const selection = window.getSelection()?.toString() || ""
+      if (selection.length > 0) {
+        internalClipboardRef.current = selection
+        console.log("[AntiCheat] Internal cut tracked (allowed)")
+      }
+    }
+
+    // Smart paste detection - only flag EXTERNAL pastes
+    const handlePaste = (e: ClipboardEvent) => {
+      const pastedText = e.clipboardData?.getData("text") || ""
+
+      if (pastedText.length === 0) return
+
+      // Check if this paste matches what was copied internally
+      const isInternalPaste = internalClipboardRef.current.length > 0 &&
+        pastedText === internalClipboardRef.current
+
+      if (isInternalPaste) {
+        // This is internal copy-paste within the IDE - ALLOW IT
+        console.log("[AntiCheat] Internal paste detected - ALLOWED")
+        return
+      }
+
+      // External paste detected - this is suspicious
+      const pasteLength = pastedText.length
+
+      // Only log significant external pastes (> 50 chars to avoid false positives)
+      if (pasteLength > 50) {
         logViolation({
-          type: "CUT_ATTEMPT",
-          context: "EDITOR",
+          type: "PASTE_ATTEMPT",
+          context: pasteLength > 500 ? "SUSPICIOUS_LARGE_PASTE" : "EXTERNAL",
           timestamp: Date.now(),
         })
       }
     }
 
+    // Block DevTools shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key.toLowerCase() === "c") {
-        logViolation({
-          type: "CTRL_C",
-          timestamp: Date.now(),
-        })
+      // Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (view source)
+      const isDevToolsShortcut =
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") ||
+        (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "j") ||
+        (e.ctrlKey && e.key.toLowerCase() === "u")
+
+      if (isDevToolsShortcut) {
+        e.preventDefault()
+        logViolation({ type: "CTRL_V", timestamp: Date.now() })
       }
-      if (e.ctrlKey && e.key.toLowerCase() === "v") {
-        logViolation({
-          type: "CTRL_V",
-          timestamp: Date.now(),
-        })
-      }
+    }
+
+    // Block right-click
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+      console.log("[AntiCheat] Right-click blocked")
     }
 
     document.addEventListener("copy", handleCopy)
     document.addEventListener("paste", handlePaste)
     document.addEventListener("cut", handleCut)
     document.addEventListener("keydown", handleKeyDown)
+    document.addEventListener("contextmenu", handleContextMenu)
 
     return () => {
       document.removeEventListener("copy", handleCopy)
       document.removeEventListener("paste", handlePaste)
       document.removeEventListener("cut", handleCut)
       document.removeEventListener("keydown", handleKeyDown)
+      document.removeEventListener("contextmenu", handleContextMenu)
     }
   }, [enabled, logViolation])
 

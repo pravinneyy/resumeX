@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, ArrowLeft, BrainCircuit, Save, CheckCircle2, CloudOff } from "lucide-react";
+import { Loader2, ArrowLeft, BrainCircuit, Save, CheckCircle2, CloudOff, Camera, CameraOff, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { MCQQuestion } from "@/components/assessments/mcq-question";
 import AssessmentTabs from "@/components/candidate/AssessmentTabs";
+import { useEnhancedAntiCheat } from "@/hooks/useEnhancedAntiCheat";
+import { useExam } from "@/contexts/ExamContext";
 
 type QuestionType = "slider" | "mcq" | "text";
 
@@ -44,6 +46,73 @@ export default function PsychometricPage() {
   const [answers, setAnswers] = useState<Record<string, any>>({}); // Empty default
 
   const [questions, setQuestions] = useState<Question[]>([]); // Empty default
+
+  // ===== PROCTORING: Anti-Cheat Hook =====
+  const [sessionId] = useState(() => `psychometric_${Date.now()}`);
+  const [cameraLoading, setCameraLoading] = useState(true);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+
+  const antiCheat = useEnhancedAntiCheat({
+    sessionId,
+    enabled: true,
+    candidateId: user?.id,
+    jobId: jobId ? parseInt(jobId) : undefined,
+    maxViolations: 10,
+    onViolation: (violation, count) => {
+      console.log(`[Psychometric] Violation #${count}:`, violation.type);
+      if (count >= 5) {
+        toast.error("⚠️ Multiple violations detected", {
+          description: "Your activity is being monitored."
+        });
+      }
+    },
+  });
+
+  // Initialize camera on mount
+  useEffect(() => {
+    const initCamera = async () => {
+      try {
+        setCameraLoading(true);
+        await antiCheat.initializeCamera();
+        setCameraLoading(false);
+      } catch (error: any) {
+        console.error("[Psychometric] Camera error:", error);
+        setCameraError(error?.message || "Camera access failed");
+        setCameraLoading(false);
+      }
+    };
+
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(initCamera, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Cleanup camera on unmount
+  useEffect(() => {
+    return () => {
+      antiCheat.stopCamera();
+    };
+  }, []);
+
+  // ===== EXAM LOCKDOWN MODE =====
+  const { startExam, endExam, isExamActive } = useExam();
+
+  // Activate lockdown mode when page loads
+  useEffect(() => {
+    if (!loadingProgress && questions.length >= 0 && !isExamActive && jobId) {
+      startExam(parseInt(jobId), "psychometric", 1800); // 30 min default
+      console.log("[Psychometric] Exam lockdown mode activated");
+    }
+  }, [loadingProgress, questions, isExamActive, jobId, startExam]);
+
+  // End exam on unmount (when navigating to next section)
+  useEffect(() => {
+    return () => {
+      if (isExamActive) {
+        endExam("completed");
+      }
+    };
+  }, [isExamActive, endExam]);
 
   // Auto-save progress to database
   const saveProgress = useCallback(async (answersToSave: Record<string, any>) => {
@@ -275,7 +344,14 @@ export default function PsychometricPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push("/candidate/interviews")}
+          onClick={() => {
+            if (isExamActive) {
+              const confirmed = window.confirm("⚠️ You are in an active exam. Are you sure you want to exit? Your progress will be saved.");
+              if (!confirmed) return;
+              endExam("completed");
+            }
+            router.push("/candidate/interviews");
+          }}
           className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="w-4 h-4 mr-2" /> Exit
@@ -283,32 +359,54 @@ export default function PsychometricPage() {
 
         <AssessmentTabs jobId={jobId as string} />
 
-        {/* Auto-save Status Indicator */}
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border">
-          {saveStatus === "saving" && (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-              <span className="text-sm text-muted-foreground">Saving...</span>
-            </>
-          )}
-          {saveStatus === "saved" && (
-            <>
-              <CheckCircle2 className="w-4 h-4 text-green-500" />
-              <span className="text-sm text-green-600">Saved</span>
-            </>
-          )}
-          {saveStatus === "error" && (
-            <>
-              <CloudOff className="w-4 h-4 text-red-500" />
-              <span className="text-sm text-red-600">Error</span>
-            </>
-          )}
-          {saveStatus === "idle" && (
-            <>
-              <Save className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Auto-save</span>
-            </>
-          )}
+        <div className="flex items-center gap-3">
+          {/* Proctoring Status Indicator */}
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${antiCheat.cameraActive ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+            {cameraLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                <span className="text-sm text-muted-foreground">Camera...</span>
+              </>
+            ) : antiCheat.cameraActive ? (
+              <>
+                <Camera className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-600">Proctored</span>
+              </>
+            ) : (
+              <>
+                <CameraOff className="w-4 h-4 text-red-500" />
+                <span className="text-sm text-red-600">No Camera</span>
+              </>
+            )}
+          </div>
+
+          {/* Auto-save Status Indicator */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border">
+            {saveStatus === "saving" && (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                <span className="text-sm text-muted-foreground">Saving...</span>
+              </>
+            )}
+            {saveStatus === "saved" && (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <span className="text-sm text-green-600">Saved</span>
+              </>
+            )}
+            {saveStatus === "error" && (
+              <>
+                <CloudOff className="w-4 h-4 text-red-500" />
+                <span className="text-sm text-red-600">Error</span>
+              </>
+            )}
+            {saveStatus === "idle" && (
+              <>
+                <Save className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Auto-save</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

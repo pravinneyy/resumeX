@@ -13,6 +13,7 @@ import { Trash2, Ban } from "lucide-react"
 // 🔒 SUPER ADMIN SECURITY CHECK
 const SUPER_ADMINS = [
     "pravinleein@gmail.com",
+    "adarshsr2210703@gmail.com"
 
 ]
 

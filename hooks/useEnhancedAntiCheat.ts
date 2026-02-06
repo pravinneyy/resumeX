@@ -68,6 +68,12 @@ export function useEnhancedAntiCheat({
     const faceMeshRef = useRef<any>(null)
     const lastFaceDetectedRef = useRef<number>(Date.now())
 
+    // Cooldown refs to prevent rapid logging
+    const lastMultipleFacesLogRef = useRef<number>(0)
+    const lastLookingAwayLogRef = useRef<number>(0)
+    const MULTIPLE_FACES_COOLDOWN = 10000  // 10 seconds between logs
+    const LOOKING_AWAY_COOLDOWN = 5000      // 5 seconds between logs
+
     // ===== LOGGING FUNCTION =====
     const logViolation = useCallback((violation: ViolationLog) => {
         violationsRef.current.push(violation)
@@ -200,20 +206,30 @@ export function useEnhancedAntiCheat({
 
                         setIsLookingAtScreen(!lookingAway)
 
+                        // Only log looking away with cooldown to prevent spam
                         if (lookingAway) {
-                            logViolation({
-                                type: "LOOKING_AWAY",
-                                reason: "Candidate appears to be looking away from screen",
-                                timestamp: Date.now(),
-                            })
+                            const now = Date.now()
+                            if (now - lastLookingAwayLogRef.current >= LOOKING_AWAY_COOLDOWN) {
+                                lastLookingAwayLogRef.current = now
+                                logViolation({
+                                    type: "LOOKING_AWAY",
+                                    reason: "Candidate appears to be looking away from screen",
+                                    timestamp: now,
+                                })
+                            }
                         }
                     }
                 } else if (faceCount > 1) {
-                    logViolation({
-                        type: "MULTIPLE_FACES",
-                        reason: `${faceCount} faces detected`,
-                        timestamp: Date.now(),
-                    })
+                    // Only log multiple faces with cooldown to prevent rapid increment
+                    const now = Date.now()
+                    if (now - lastMultipleFacesLogRef.current >= MULTIPLE_FACES_COOLDOWN) {
+                        lastMultipleFacesLogRef.current = now
+                        logViolation({
+                            type: "MULTIPLE_FACES",
+                            reason: `${faceCount} faces detected`,
+                            timestamp: now,
+                        })
+                    }
                     // Auto-pause disabled - just log the violation
                 }
             })
@@ -405,29 +421,94 @@ export function useEnhancedAntiCheat({
         }
     }, [enabled, logViolation])
 
-    // ===== COPY/PASTE DETECTION =====
+    // ===== SMART COPY/PASTE DETECTION =====
+    // Track internal clipboard to allow internal copy-paste, only flag external pastes
+    const internalClipboardRef = useRef<string>("")
+
     useEffect(() => {
         if (!enabled) return
 
-        const handleCopy = () => logViolation({ type: "COPY_ATTEMPT", context: "EDITOR", timestamp: Date.now() })
-        const handlePaste = () => logViolation({ type: "PASTE_ATTEMPT", context: "EDITOR", timestamp: Date.now() })
-        const handleCut = () => logViolation({ type: "CUT_ATTEMPT", context: "EDITOR", timestamp: Date.now() })
+        // Track what candidate copies from within the IDE
+        const handleCopy = (e: ClipboardEvent) => {
+            const selection = window.getSelection()?.toString() || ""
+            if (selection.length > 0) {
+                // Store copied content to compare with paste
+                internalClipboardRef.current = selection
+                console.log("[EnhancedAntiCheat] Internal copy tracked (allowed)")
+            }
+        }
 
+        const handleCut = (e: ClipboardEvent) => {
+            const selection = window.getSelection()?.toString() || ""
+            if (selection.length > 0) {
+                internalClipboardRef.current = selection
+                console.log("[EnhancedAntiCheat] Internal cut tracked (allowed)")
+            }
+        }
+
+        // Smart paste detection - only flag EXTERNAL pastes
+        const handlePaste = (e: ClipboardEvent) => {
+            const pastedText = e.clipboardData?.getData("text") || ""
+
+            if (pastedText.length === 0) return
+
+            // Check if this paste matches what was copied internally
+            const isInternalPaste = internalClipboardRef.current.length > 0 &&
+                pastedText === internalClipboardRef.current
+
+            if (isInternalPaste) {
+                // This is internal copy-paste within the IDE - ALLOW IT
+                console.log("[EnhancedAntiCheat] Internal paste detected - ALLOWED")
+                return
+            }
+
+            // External paste detected - this is suspicious
+            const pasteLength = pastedText.length
+
+            // Only log significant external pastes (> 50 chars to avoid false positives)
+            if (pasteLength > 50) {
+                logViolation({
+                    type: "PASTE_ATTEMPT",
+                    reason: `External paste: ${pasteLength} characters`,
+                    context: pasteLength > 500 ? "SUSPICIOUS_LARGE_PASTE" : "EXTERNAL",
+                    timestamp: Date.now(),
+                })
+            }
+        }
+
+        // Block DevTools shortcuts
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.ctrlKey && e.key.toLowerCase() === "c") logViolation({ type: "CTRL_C", timestamp: Date.now() })
-            if (e.ctrlKey && e.key.toLowerCase() === "v") logViolation({ type: "CTRL_V", timestamp: Date.now() })
+            // Block F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (view source)
+            const isDevToolsShortcut =
+                e.key === "F12" ||
+                (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") ||
+                (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "j") ||
+                (e.ctrlKey && e.key.toLowerCase() === "u")
+
+            if (isDevToolsShortcut) {
+                e.preventDefault()
+                logViolation({ type: "CTRL_V", reason: "DevTools attempt blocked", timestamp: Date.now() })
+            }
+        }
+
+        // Block right-click
+        const handleContextMenu = (e: MouseEvent) => {
+            e.preventDefault()
+            console.log("[EnhancedAntiCheat] Right-click blocked")
         }
 
         document.addEventListener("copy", handleCopy)
         document.addEventListener("paste", handlePaste)
         document.addEventListener("cut", handleCut)
         document.addEventListener("keydown", handleKeyDown)
+        document.addEventListener("contextmenu", handleContextMenu)
 
         return () => {
             document.removeEventListener("copy", handleCopy)
             document.removeEventListener("paste", handlePaste)
             document.removeEventListener("cut", handleCut)
             document.removeEventListener("keydown", handleKeyDown)
+            document.removeEventListener("contextmenu", handleContextMenu)
         }
     }, [enabled, logViolation])
 
