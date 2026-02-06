@@ -44,7 +44,6 @@ export default function PsychometricPage() {
 
   // Mixed state handling (number for slider, string for others)
   const [answers, setAnswers] = useState<Record<string, any>>({}); // Empty default
-  const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
   const [questions, setQuestions] = useState<Question[]>([]); // Empty default
 
@@ -128,7 +127,7 @@ export default function PsychometricPage() {
 
     try {
       const token = await getToken();
-      const res = await fetch(`${API_URL}/api/assessments/psychometric/progress`, {
+      const res = await fetch("http://127.0.0.1:8000/api/assessments/psychometric/progress", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -177,7 +176,7 @@ export default function PsychometricPage() {
       try {
         const token = await getToken();
         const res = await fetch(
-          `${API_URL}/api/assessments/psychometric/progress/${jobId}/${user.id}`,
+          `http://127.0.0.1:8000/api/assessments/psychometric/progress/${jobId}/${user.id}`,
           {
             headers: { "Authorization": `Bearer ${token}` }
           }
@@ -211,7 +210,7 @@ export default function PsychometricPage() {
       try {
         const token = await getToken();
         // Fetch questions assigned to this job (or random fallback from backend)
-        const res = await fetch(`${API_URL}/api/assessments/${jobId}/psychometric`, {
+        const res = await fetch(`http://127.0.0.1:8000/api/assessments/${jobId}/psychometric`, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
@@ -292,7 +291,7 @@ export default function PsychometricPage() {
     try {
       console.log("[psychometric] Submitting answers for jobId:", jobId, "user:", user?.id, "answers:", answers)
       const token = await getToken();
-      const res = await fetch(`${API_URL}/api/assessments/psychometric`, {
+      const res = await fetch("http://127.0.0.1:8000/api/assessments/psychometric", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -345,14 +344,7 @@ export default function PsychometricPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            if (isExamActive) {
-              const confirmed = window.confirm("⚠️ You are in an active exam. Are you sure you want to exit? Your progress will be saved.");
-              if (!confirmed) return;
-              endExam("completed");
-            }
-            router.push("/candidate/interviews");
-          }}
+          onClick={() => router.push("/candidate/interviews")}
           className="text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="w-4 h-4 mr-2" /> Exit

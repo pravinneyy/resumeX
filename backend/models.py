@@ -342,6 +342,32 @@ class CandidateFinalScore(Base):
     candidate = relationship("Candidate")
 
 
+# --- NEW TABLE: Recruiter Analysis (User Request) ---
+class RecruiterAnalysis(Base):
+    """
+    Dedicated table for the Recruiter Analysis page.
+    Stores the final snapshot of candidate performance for easy fetching.
+    """
+    __tablename__ = "recruiter_analysis"
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    candidate_id = Column(String, ForeignKey("candidates.id"), nullable=False)
+    
+    # Scores for display (normalized 0-100)
+    coding_score = Column(Float, nullable=True)
+    technical_score = Column(Float, nullable=True)
+    psychometric_score = Column(Float, nullable=True)
+    behavioral_score = Column(Float, nullable=True)
+    
+    weighted_score = Column(Float, default=0.0)
+    status = Column(String, default="Pending")
+    
+    # AI Recommendation & Reasoning
+    ai_recommendation = Column(JSON, default={}) # {recommendation, strengths, weaknesses, reasoning}
+    
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 # --- BULK UPLOAD TRACKING ---
 class BulkUploadJob(Base):
     """

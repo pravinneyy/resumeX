@@ -1124,7 +1124,7 @@ class ScoringEngine:
         db: Session
     ) -> "CandidateFinalScore":
         """Store the scoring result in Supabase"""
-        from models import CandidateFinalScore
+        from models import CandidateFinalScore, RecruiterAnalysis
         
         # Check for existing record
         existing = db.query(CandidateFinalScore).filter(
@@ -1158,7 +1158,7 @@ class ScoringEngine:
             
             db.commit()
             db.refresh(existing)
-            return existing
+            final_score_record = existing
         else:
             # Create new record
             new_score = CandidateFinalScore(
@@ -1181,7 +1181,48 @@ class ScoringEngine:
             db.add(new_score)
             db.commit()
             db.refresh(new_score)
-            return new_score
+            final_score_record = new_score
+
+        # --- SYNC TO RECRUITER ANALYSIS TABLE (User Request) ---
+        recruiter_analysis = db.query(RecruiterAnalysis).filter(
+            RecruiterAnalysis.job_id == job_id,
+            RecruiterAnalysis.candidate_id == candidate_id
+        ).first()
+
+        # Construct AI Recommendation payload
+        # Currently leveraging static rules, but could be enhanced with LLM
+        ai_recommendation = {
+            "recommendation": result.decision,
+            "role_suitability": "High" if result.final_score > 75 else "Medium" if result.final_score > 50 else "Low",
+            "strengths": [],
+            "weaknesses": [],
+            "reasoning": f"Candidate achieved a weighted score of {int(result.final_score)}%. Decision based on components: Coding ({int(coding.score if coding else 0)}), Technical ({int(technical.score if technical else 0)})."
+        }
+        
+        # Infer strengths/weaknesses from scores
+        if coding and coding.score >= 80: ai_recommendation["strengths"].append("Strong Coding Skills")
+        if coding and coding.score < 50: ai_recommendation["weaknesses"].append("Low Coding Proficiency")
+        if technical and technical.score >= 80: ai_recommendation["strengths"].append("Strong Technical Knowledge")
+        if psychometric and psychometric.score >= 80: ai_recommendation["strengths"].append("High Cognitive Aptitude")
+        
+        if not recruiter_analysis:
+            recruiter_analysis = RecruiterAnalysis(
+                job_id=job_id,
+                candidate_id=candidate_id
+            )
+            db.add(recruiter_analysis)
+        
+        recruiter_analysis.coding_score = coding.score if coding else None
+        recruiter_analysis.technical_score = technical.score if technical and technical.status == "evaluated" else None
+        recruiter_analysis.psychometric_score = psychometric.score if psychometric else None
+        recruiter_analysis.behavioral_score = behavioral.score if behavioral else None
+        recruiter_analysis.weighted_score = result.final_score
+        recruiter_analysis.status = result.decision
+        recruiter_analysis.ai_recommendation = ai_recommendation
+        
+        db.commit()
+        
+        return final_score_record
 
 
 # ============================================================

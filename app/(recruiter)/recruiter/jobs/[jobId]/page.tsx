@@ -53,9 +53,54 @@ export default function JobDetailsPage() {
     const [initialApplications, setInitialApplications] = useState<Application[]>([])
     const [selectedApp, setSelectedApp] = useState<Application | null>(null)
     const [updating, setUpdating] = useState(false)
-    const API_URL = process.env.NEXT_PUBLIC_API_URL 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL
     // Realtime applications for this job
     const applications = useRealtimeApplications(initialApplications, { jobId: Number(jobId) })
+
+    // Invite State
+    const [sendingInvites, setSendingInvites] = useState<Set<number>>(new Set())
+
+    const handleSendInvite = async (app: Application, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!app.email) {
+            alert("No email found for this candidate")
+            return
+        }
+
+        setSendingInvites(prev => new Set(prev).add(app.id))
+        try {
+            const token = await getToken()
+            const res = await fetch(`${API_URL}/api/invite/send`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    email: app.email,
+                    name: app.name,
+                    job_id: Number(jobId),
+                    application_id: app.id,
+                    invite_type: "interview"
+                })
+            })
+
+            if (res.ok) {
+                alert(`Invitation sent to ${app.email}`)
+            } else {
+                alert("Failed to send invitation")
+            }
+        } catch (error) {
+            console.error(error)
+            alert("Error sending invitation")
+        } finally {
+            setSendingInvites(prev => {
+                const next = new Set(prev)
+                next.delete(app.id)
+                return next
+            })
+        }
+    }
 
     useEffect(() => {
         if (isLoaded && jobId) {
@@ -205,15 +250,32 @@ export default function JobDetailsPage() {
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <Badge
-                                                    variant={
-                                                        app.status === 'Selected' ? 'default' :
-                                                            app.status === 'Rejected' ? 'destructive' :
-                                                                'secondary'
-                                                    }
-                                                >
-                                                    {app.status}
-                                                </Badge>
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <Badge
+                                                        variant={
+                                                            app.status === 'Selected' ? 'default' :
+                                                                app.status === 'Rejected' ? 'destructive' :
+                                                                    'secondary'
+                                                        }
+                                                    >
+                                                        {app.status}
+                                                    </Badge>
+
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 gap-1.5 text-xs border-purple-200 text-purple-600 hover:bg-purple-50 hover:text-purple-700 dark:border-purple-800 dark:text-purple-400 dark:hover:bg-purple-950/30"
+                                                        onClick={(e) => handleSendInvite(app, e)}
+                                                        disabled={sendingInvites.has(app.id)}
+                                                    >
+                                                        {sendingInvites.has(app.id) ? (
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                        ) : (
+                                                            <Mail className="h-3 w-3" />
+                                                        )}
+                                                        Invite
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
