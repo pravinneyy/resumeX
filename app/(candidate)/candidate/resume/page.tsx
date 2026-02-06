@@ -19,6 +19,7 @@ export default function ResumePage() {
     const [isUploading, setIsUploading] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
     const [parsedData, setParsedData] = useState<any>(null)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
     // Fetch existing resume data on page load
     useEffect(() => {
@@ -29,7 +30,7 @@ export default function ResumePage() {
                 const token = await getToken()
 
                 // Fetch candidate profile
-                const profileRes = await fetch(`http://127.0.0.1:8000/api/candidates/${user.id}/profile`, {
+                const profileRes = await fetch(`${API_URL}/api/candidates/${user.id}/profile`, {
                     headers: {
                         "Authorization": `Bearer ${token}`
                     }
@@ -38,7 +39,7 @@ export default function ResumePage() {
 
                 if (profileData.has_resume) {
                     // Fetch job recommendations
-                    const jobsRes = await fetch(`http://127.0.0.1:8000/api/candidates/${user.id}/recommended-jobs`, {
+                    const jobsRes = await fetch(`${API_URL}/api/candidates/${user.id}/recommended-jobs`, {
                         headers: {
                             "Authorization": `Bearer ${token}`
                         }
@@ -75,7 +76,7 @@ export default function ResumePage() {
             const token = await getToken()
 
             //Upload and analyze resume
-            const res = await fetch(`http://127.0.0.1:8000/api/candidates/${user.id}/resume`, {
+            const res = await fetch(`${API_URL}/api/candidates/${user.id}/resume`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`
@@ -87,7 +88,7 @@ export default function ResumePage() {
 
             if (res.ok) {
                 // Fetch job recommendations based on detected skills
-                const jobsRes = await fetch(`http://127.0.0.1:8000/api/candidates/${user.id}/recommended-jobs`, {
+                const jobsRes = await fetch(`${API_URL}/api/candidates/${user.id}/recommended-jobs`, {
                     headers: {
                         "Authorization": `Bearer ${token}`
                     }

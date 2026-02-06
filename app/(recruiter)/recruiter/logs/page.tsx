@@ -93,13 +93,14 @@ export default function LogsPage() {
     const [searchQuery, setSearchQuery] = useState("")
     const [filterType, setFilterType] = useState<string>("ALL")
     const { getToken } = useAuth()
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
     const fetchLogs = async () => {
         setLoading(true)
         try {
             const token = await getToken()
             // URL already matches backend default
-            const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/all-violations?limit=100", {
+            const res = await fetch(`${API_URL}/api/anti-cheat/all-violations?limit=100`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -120,7 +121,7 @@ export default function LogsPage() {
 
         try {
             const token = await getToken()
-            const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/clear-logs", {
+            const res = await fetch(`${API_URL}/api/anti-cheat/clear-logs`, {
                 method: "DELETE",
                 headers: {
                     Authorization: `Bearer ${token}`

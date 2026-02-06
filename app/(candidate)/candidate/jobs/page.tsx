@@ -17,6 +17,7 @@ export default function CandidateJobsPage() {
     const [initialJobs, setInitialJobs] = useState<any[]>([])
     const [appliedJobIds, setAppliedJobIds] = useState<Set<number>>(new Set())
     const [search, setSearch] = useState("")
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
     // ✨ REALTIME: Use the hook for automatic updates
     const jobs = useRealtimeJobs(initialJobs)
@@ -33,7 +34,8 @@ export default function CandidateJobsPage() {
             const token = await getToken()
 
             // FIX: Changed to /api/jobs/feed to see ALL jobs (not just my own)
-            const res = await fetch("http://127.0.0.1:8000/api/jobs/feed", {
+            // FIX: Changed to /api/jobs/feed to see ALL jobs (not just my own)
+            const res = await fetch(`${API_URL}/api/jobs/feed`, {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -49,7 +51,7 @@ export default function CandidateJobsPage() {
         try {
             const token = await getToken()
 
-            const res = await fetch(`http://127.0.0.1:8000/api/candidate/applications?candidateId=${user.id}`, {
+            const res = await fetch(`${API_URL}/api/candidate/applications?candidateId=${user.id}`, {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -83,7 +85,7 @@ export default function CandidateJobsPage() {
             formData.append("candidate_email", user.primaryEmailAddress?.emailAddress || "")
             formData.append("resume", resumeFile)
 
-            const res = await fetch("http://127.0.0.1:8000/api/applications/apply", {
+            const res = await fetch(`${API_URL}/api/applications/apply`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`

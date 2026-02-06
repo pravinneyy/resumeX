@@ -30,6 +30,7 @@ export default function TechnicalTextPage() {
     const [submitting, setSubmitting] = useState(false)
     const [timeLeft, setTimeLeft] = useState(1800) // 30 minutes default
     const [hasStarted, setHasStarted] = useState(false)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
     // Fetch questions on mount
     useEffect(() => {
@@ -39,7 +40,7 @@ export default function TechnicalTextPage() {
                 const token = await getToken()
 
                 // First get assessment to get technical_question_ids
-                const assessmentRes = await fetch(`http://127.0.0.1:8000/api/assessments/${jobId}`, {
+                const assessmentRes = await fetch(`${API_URL}/api/assessments/${jobId}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 })
 
@@ -60,7 +61,7 @@ export default function TechnicalTextPage() {
 
                 // Fetch the actual questions
                 const questionsRes = await fetch(
-                    `http://127.0.0.1:8000/api/technical-questions/by-ids?ids=${techIds.join(",")}`,
+                    `${API_URL}/api/technical-questions/by-ids?ids=${techIds.join(",")}`,
                     { headers: { "Authorization": `Bearer ${token}` } }
                 )
 
@@ -71,7 +72,7 @@ export default function TechnicalTextPage() {
 
                 // Load saved progress
                 const progressRes = await fetch(
-                    `http://127.0.0.1:8000/api/assessments/technical/progress/${jobId}/${user?.id}`,
+                    `${API_URL}/api/assessments/technical/progress/${jobId}/${user?.id}`,
                     { headers: { "Authorization": `Bearer ${token}` } }
                 )
 
@@ -131,7 +132,7 @@ export default function TechnicalTextPage() {
 
         try {
             const token = await getToken()
-            await fetch("http://127.0.0.1:8000/api/assessments/technical/progress", {
+            await fetch(`${API_URL}/api/assessments/technical/progress`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -181,7 +182,7 @@ export default function TechnicalTextPage() {
             })
 
             // Submit answers for grading and scoring
-            const submitRes = await fetch("http://127.0.0.1:8000/api/technical-text/submit", {
+            const submitRes = await fetch(`${API_URL}/api/technical-text/submit`, {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token}`,
@@ -206,7 +207,7 @@ export default function TechnicalTextPage() {
 
             // Delete progress after successful submission
             await fetch(
-                `http://127.0.0.1:8000/api/assessments/technical/progress/${jobId}/${user?.id}`,
+                `${API_URL}/api/assessments/technical/progress/${jobId}/${user?.id}`,
                 {
                     method: "DELETE",
                     headers: { "Authorization": `Bearer ${token}` }

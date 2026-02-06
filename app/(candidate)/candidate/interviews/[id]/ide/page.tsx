@@ -24,6 +24,7 @@ export default function CodingAssessment() {
   const [assessment, setAssessment] = useState<any>(null)
   const [problemIds, setProblemIds] = useState<{ [key: number]: string }>({})
   const [testCasesByQuestion, setTestCasesByQuestion] = useState<{ [key: number]: any[] }>({})
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
   // Navigation State
   const [currentQIndex, setCurrentQIndex] = useState(0)
@@ -104,7 +105,7 @@ export default function CodingAssessment() {
       if (!jobId) return
       try {
         const token = await getToken()
-        const res = await fetch(`http://127.0.0.1:8000/api/assessments/${jobId}`, {
+        const res = await fetch(`${API_URL}/api/assessments/${jobId}`, {
           headers: { "Authorization": `Bearer ${token}` }
         })
         const data = res.ok ? await res.json() : { questions: [] }
@@ -148,7 +149,7 @@ export default function CodingAssessment() {
             // Fetch problem details to get the correct function signature
             try {
               const problemRes = await fetch(
-                `http://127.0.0.1:8000/api/problems/${extractedProblemId}`,
+                `${API_URL}/api/problems/${extractedProblemId}`,
                 { headers: { "Authorization": `Bearer ${token}` } }
               );
 
@@ -285,7 +286,7 @@ export default function CodingAssessment() {
       const token = await getToken();
 
       // Step 1: Compile first on our backend
-      const compileResponse = await fetch(`http://127.0.0.1:8000/api/compile`, {
+      const compileResponse = await fetch(`${API_URL}/api/compile`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -377,7 +378,7 @@ export default function CodingAssessment() {
 
       // Step 1: Compile first (backend now does this automatically, but we show the status)
       const response = await fetch(
-        `http://127.0.0.1:8000/api/problems/${currentProblemId}/run-sample-tests`,
+        `${API_URL}/api/problems/${currentProblemId}/run-sample-tests`,
         {
           method: "POST",
           headers: {
@@ -460,7 +461,7 @@ export default function CodingAssessment() {
 
     try {
       const token = await getToken()
-      const url = `http://127.0.0.1:8000/api/problems/${currentProblemId}/evaluate`;
+      const url = `${API_URL}/api/problems/${currentProblemId}/evaluate`;
       console.log("Calling evaluate API:", url);
 
       setOutput("🔧 Compiling code...\n⏳ Running hidden tests...");
@@ -574,9 +575,13 @@ VERDICT: ${result.verdict}
     if (!user) return;
     setSubmitting(true);
     try {
-      await fetch(`http://127.0.0.1:8000/api/assessments/${jobId}/submit`, {
+      const token = await getToken();
+      await fetch(`${API_URL}/api/assessments/${jobId}/submit`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           candidate_id: user.id,
           code: code,
@@ -694,7 +699,7 @@ VERDICT: ${result.verdict}
       setOutput(`🔧 Submitting ${submissions.length} questions...\n⏳ Evaluating code...`);
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/assessments/${jobId}/evaluate-all`,
+        `${API_URL}/api/assessments/${jobId}/evaluate-all`,
         {
           method: "POST",
           headers: {

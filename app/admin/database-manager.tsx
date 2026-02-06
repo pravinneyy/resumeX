@@ -44,6 +44,7 @@ const MANAGED_TABLES = [
 ]
 
 export default function DatabaseManager() {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
     const [tables, setTables] = useState<TableInfo[]>([])
     const [selectedTable, setSelectedTable] = useState<string | null>(null)
     const [tableData, setTableData] = useState<TableData | null>(null)
@@ -57,7 +58,7 @@ export default function DatabaseManager() {
 
     const fetchTables = async () => {
         try {
-            const res = await fetch("http://127.0.0.1:8000/api/admin/tables")
+            const res = await fetch(`${API_URL}/api/admin/tables`)
             const data = await res.json()
             setTables(data.tables || [])
         } catch (error) {
@@ -68,7 +69,7 @@ export default function DatabaseManager() {
     const fetchTableData = async (tableName: string) => {
         setLoading(true)
         try {
-            const res = await fetch(`http://127.0.0.1:8000/api/admin/table/${tableName}?limit=100`)
+            const res = await fetch(`${API_URL}/api/admin/table/${tableName}?limit=100`)
 
             if (!res.ok) {
                 console.error(`Failed to fetch table data: ${res.status} ${res.statusText}`)
@@ -101,7 +102,7 @@ export default function DatabaseManager() {
         if (!confirm(`Delete record ${recordId} from ${tableName}?`)) return
 
         try {
-            const res = await fetch(`http://127.0.0.1:8000/api/admin/table/${tableName}/record/${recordId}`, {
+            const res = await fetch(`${API_URL}/api/admin/table/${tableName}/record/${recordId}`, {
                 method: "DELETE"
             })
 
@@ -120,7 +121,7 @@ export default function DatabaseManager() {
 
     const updateRecord = async (tableName: string, recordId: string, updates: Record<string, any>) => {
         try {
-            const res = await fetch(`http://127.0.0.1:8000/api/admin/table/${tableName}/record/${recordId}`, {
+            const res = await fetch(`${API_URL}/api/admin/table/${tableName}/record/${recordId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ updates })
@@ -143,7 +144,7 @@ export default function DatabaseManager() {
         if (!confirm(`⚠️ Clear ALL data from ${tableName}?\n\nNote: This will also clear dependent tables to avoid foreign key errors.\n\nThis cannot be undone!`)) return
 
         try {
-            const res = await fetch(`http://127.0.0.1:8000/api/admin/table/${tableName}/clear`, {
+            const res = await fetch(`${API_URL}/api/admin/table/${tableName}/clear`, {
                 method: "DELETE"
             })
 
@@ -178,7 +179,7 @@ export default function DatabaseManager() {
         if (!confirm("⚠️ FINAL WARNING: This action cannot be undone. Type YES to confirm.")) return
 
         try {
-            const res = await fetch("http://127.0.0.1:8000/api/admin/reset-all-tables", {
+            const res = await fetch(`${API_URL}/api/admin/reset-all-tables`, {
                 method: "POST"
             })
 

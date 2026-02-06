@@ -22,6 +22,7 @@ export default function CandidateDashboard() {
     const [activeTask, setActiveTask] = useState<any>(null)
     const [initialRecommendedJobs, setInitialRecommendedJobs] = useState<any[]>([])
     const [initialApplications, setInitialApplications] = useState<any[]>([])
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
     // Realtime hooks
     const recommendedJobs = useRealtimeJobs(initialRecommendedJobs)
@@ -36,7 +37,8 @@ export default function CandidateDashboard() {
                 const token = await getToken() // <--- 3. Get Token
 
                 // <--- 4. Attach Token to Request
-                const res = await fetch(`http://127.0.0.1:8000/api/candidate/applications?candidateId=${user.id}`, {
+                // <--- 4. Attach Token to Request
+                const res = await fetch(`${API_URL}/api/candidate/applications?candidateId=${user.id}`, {
                     headers: {
                         "Authorization": `Bearer ${token}`
                     }
@@ -63,7 +65,7 @@ export default function CandidateDashboard() {
             // Fetch recommended jobs
             try {
                 const token = await getToken()
-                const jobsRes = await fetch(`http://127.0.0.1:8000/api/candidates/${user.id}/recommended-jobs`, {
+                const jobsRes = await fetch(`${API_URL}/api/candidates/${user.id}/recommended-jobs`, {
                     headers: {
                         "Authorization": `Bearer ${token}`
                     }

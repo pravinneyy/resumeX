@@ -14,13 +14,14 @@ export default function InterviewsPage() {
     const router = useRouter()
     const [applications, setApplications] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
     useEffect(() => {
         const fetchApps = async () => {
             if (!user) return
             try {
                 const token = await getToken()
-                const res = await fetch(`http://127.0.0.1:8000/api/candidate/applications?candidateId=${user.id}`, {
+                const res = await fetch(`${API_URL}/api/candidate/applications?candidateId=${user.id}`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 })
                 const data = res.ok ? await res.json() : []

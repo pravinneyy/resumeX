@@ -52,6 +52,7 @@ export default function JobDetailsPage() {
     const [initialApplications, setInitialApplications] = useState<Application[]>([])
     const [selectedApp, setSelectedApp] = useState<Application | null>(null)
     const [updating, setUpdating] = useState(false)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
     // Realtime applications for this job
     const applications = useRealtimeApplications(initialApplications, { jobId: Number(jobId) })
@@ -65,7 +66,7 @@ export default function JobDetailsPage() {
     const fetchApplications = async () => {
         try {
             const token = await getToken() // <--- 3. Get Token
-            const res = await fetch(`http://127.0.0.1:8000/api/jobs/${jobId}/applications`, {
+            const res = await fetch(`${API_URL}/api/jobs/${jobId}/applications`, {
                 headers: {
                     "Authorization": `Bearer ${token}` // <--- 4. Attach Header
                 }
@@ -84,7 +85,7 @@ export default function JobDetailsPage() {
         setUpdating(true)
         try {
             const token = await getToken() // <--- Get Token
-            const res = await fetch(`http://127.0.0.1:8000/api/applications/${appId}/status`, {
+            const res = await fetch(`${API_URL}/api/applications/${appId}/status`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

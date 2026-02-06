@@ -20,6 +20,7 @@ export default function RecruiterDashboard() {
     const router = useRouter()
     const [initialJobs, setInitialJobs] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
 
     // ✨ REALTIME: Use the hook for automatic updates
     const jobs = useRealtimeJobs(initialJobs)
@@ -43,7 +44,8 @@ export default function RecruiterDashboard() {
             const token = await getToken() // <--- 4. GET TOKEN
 
             // <--- 5. ATTACH HEADER
-            const res = await fetch("http://127.0.0.1:8000/api/jobs", {
+            // <--- 5. ATTACH HEADER
+            const res = await fetch(`${API_URL}/api/jobs`, {
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -60,7 +62,7 @@ export default function RecruiterDashboard() {
         try {
             const token = await getToken() // <--- 6. GET TOKEN FOR POST
 
-            const res = await fetch("http://127.0.0.1:8000/api/jobs", {
+            const res = await fetch(`${API_URL}/api/jobs`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
