@@ -250,7 +250,12 @@ export default function AIResumePage() {
         setGithubRepos([])
 
         try {
-            const res = await fetch(`http://127.0.0.1:8000/api/resume-generator/github-repos/${githubUsername}`)
+            const token = await getToken()
+            const res = await fetch(`http://127.0.0.1:8000/api/resume-generator/github-repos/${githubUsername}`, {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            })
             const data = await res.json()
 
             if (data.success && data.repos) {

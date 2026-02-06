@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+key: str = os.environ.get("SUPABASE_ANON_KEY")
 
 if not url or not key:
-    print("Warning: SUPABASE_URL or SUPABASE_KEY missing in .env")
+    print("Warning: SUPABASE_URL or SUPABASE_ANON_KEY missing in .env")
     supabase = None
 else:
     supabase: Client = create_client(url, key)

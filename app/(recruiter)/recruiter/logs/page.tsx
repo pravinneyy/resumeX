@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@clerk/nextjs"
 
 interface GlobalViolation {
     id: number
@@ -89,13 +90,20 @@ const violationConfig: Record<string, {
 export default function LogsPage() {
     const [violations, setViolations] = useState<GlobalViolation[]>([])
     const [loading, setLoading] = useState(true)
-    const [searchTerm, setSearchTerm] = useState("")
+    const [searchQuery, setSearchQuery] = useState("")
+    const [filterType, setFilterType] = useState<string>("ALL")
+    const { getToken } = useAuth()
 
     const fetchLogs = async () => {
         setLoading(true)
         try {
+            const token = await getToken()
             // URL already matches backend default
-            const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/all-violations?limit=100")
+            const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/all-violations?limit=100", {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            })
             if (res.ok) {
                 const data = await res.json()
                 setViolations(data.violations || [])
@@ -111,8 +119,12 @@ export default function LogsPage() {
         if (!confirm("Are you sure you want to delete all security logs? This cannot be undone.")) return
 
         try {
+            const token = await getToken()
             const res = await fetch("http://127.0.0.1:8000/api/anti-cheat/clear-logs", {
-                method: "DELETE"
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
             })
             if (res.ok) {
                 setViolations([])
@@ -129,9 +141,9 @@ export default function LogsPage() {
     }, [])
 
     const filteredViolations = violations.filter(v =>
-        (v.candidate_name && v.candidate_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (v.job_title && v.job_title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        v.type.toLowerCase().includes(searchTerm.toLowerCase())
+        (v.candidate_name && v.candidate_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (v.job_title && v.job_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        v.type.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
     const getConfig = (type: string) => violationConfig[type] || violationConfig["DEFAULT"]
@@ -174,8 +186,8 @@ export default function LogsPage() {
                             <Input
                                 placeholder="Search candidate or violation..."
                                 className="pl-9"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
                     </div>
