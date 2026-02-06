@@ -45,7 +45,7 @@ def get_db():
 
 # --- 2. SUPABASE CLIENT SETUP --- #
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 # Sanitize Supabase credentials
 if SUPABASE_URL:

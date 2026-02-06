@@ -13,6 +13,8 @@ interface WeightConfigProps {
     jobId: number
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 export default function WeightConfig({ jobId }: WeightConfigProps) {
     const [weights, setWeights] = useState({
         psychometric: 20,
@@ -31,7 +33,7 @@ export default function WeightConfig({ jobId }: WeightConfigProps) {
             try {
                 const token = await getToken()
                 const response = await fetch(
-                    `http://127.0.0.1:8000/api/assessments/${jobId}/weights`,
+                    `http://${API_URL}:8000/api/assessments/${jobId}/weights`,
                     {
                         headers: {
                             'Authorization': `Bearer ${token}`
@@ -81,7 +83,7 @@ export default function WeightConfig({ jobId }: WeightConfigProps) {
         try {
             const token = await getToken()
             const response = await fetch(
-                `http://127.0.0.1:8000/api/assessments/${jobId}/weights`,
+                `http://${API_URL}:8000/api/assessments/${jobId}/weights`,
                 {
                     method: 'PUT',
                     headers: {

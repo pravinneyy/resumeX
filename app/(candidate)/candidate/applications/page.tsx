@@ -22,6 +22,7 @@ interface Application {
     coding_score: number | null
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export default function ApplicationsPage() {
     const [applications, setApplications] = useState<Application[]>([])
     const [loading, setLoading] = useState(true)
@@ -30,7 +31,7 @@ export default function ApplicationsPage() {
         async function fetchApplications() {
             try {
                 const token = localStorage.getItem('token')
-                const response = await fetch('http://127.0.0.1:8000/api/candidates/me/applications', {
+                const response = await fetch(`${API_URL}/api/candidates/me/applications`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }

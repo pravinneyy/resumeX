@@ -10,7 +10,8 @@ This feature is:a
 - Not connected to application scoring
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from utils.security import get_current_user
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import base64
@@ -134,7 +135,10 @@ async def get_templates():
 
 
 @router.get("/resume-generator/github-repos/{username}", response_model=GitHubReposResponse)
-async def get_github_repos(username: str):
+async def get_github_repos(
+    username: str,
+    current_user_id: str = Depends(get_current_user)
+):
     """
     Fetch public GitHub repositories for a user.
     Returns repo metadata for selection.
@@ -147,7 +151,10 @@ async def get_github_repos(username: str):
 
 
 @router.post("/resume-generator/generate", response_model=ResumeGenerateResponse)
-async def generate_resume(request: ResumeGenerateRequest):
+async def generate_resume(
+    request: ResumeGenerateRequest,
+    current_user_id: str = Depends(get_current_user)
+):
     """
     Generate resume content with style-based rewriting.
     
@@ -245,7 +252,10 @@ async def generate_resume(request: ResumeGenerateRequest):
 
 
 @router.post("/resume-generator/compile-pdf", response_model=ResumeGenerateResponse)
-async def compile_pdf(request: Dict[str, str]):
+async def compile_pdf(
+    request: Dict[str, str],
+    current_user_id: str = Depends(get_current_user)
+):
     """
     Compile HTML content to PDF using headless browser (Playwright).
     Returns base64-encoded PDF.
@@ -284,7 +294,10 @@ async def compile_pdf(request: Dict[str, str]):
 
 
 @router.post("/resume-generator/preview")
-async def preview_resume(request: Dict[str, Any]):
+async def preview_resume(
+    request: Dict[str, Any],
+    current_user_id: str = Depends(get_current_user)
+):
     """
     Generate a preview of the resume.
     Returns structured data and HTML for frontend rendering.

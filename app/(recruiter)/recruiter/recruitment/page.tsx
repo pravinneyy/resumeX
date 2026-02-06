@@ -57,6 +57,7 @@ export default function RecruitmentPage() {
   const { getToken } = useAuth()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
   const [filter, setFilter] = useState<"All" | "Hired" | "Not Hired">("All")
   const [jobFilter, setJobFilter] = useState<string>("All")  // New job filter
@@ -73,7 +74,8 @@ export default function RecruitmentPage() {
       try {
         const token = await getToken()
         // Use absolute URL to match other working components
-        const response = await fetch('http://127.0.0.1:8000/api/candidates', {
+        // Use absolute URL to match other working components
+        const response = await fetch(`${API_URL}/api/candidates`, {
           headers: {
             "Authorization": `Bearer ${token}`
           }

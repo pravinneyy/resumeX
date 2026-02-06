@@ -75,13 +75,14 @@ export default function AnalyticsPage() {
     const [updatingStatus, setUpdatingStatus] = useState(false)
 
     const { getToken } = useAuth()
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
     // Fetch jobs
     useEffect(() => {
         async function fetchJobs() {
             try {
                 const token = await getToken()
-                const response = await fetch('http://127.0.0.1:8000/api/jobs', {
+                const response = await fetch(`${API_URL}/api/jobs`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
@@ -111,7 +112,7 @@ export default function AnalyticsPage() {
             try {
                 const token = await getToken()
                 const response = await fetch(
-                    `http://127.0.0.1:8000/api/jobs/${selectedJobId}/applications`,
+                    `${API_URL}/api/jobs/${selectedJobId}/applications`,
                     {
                         headers: {
                             'Authorization': `Bearer ${token}`
@@ -163,7 +164,7 @@ export default function AnalyticsPage() {
         try {
             const token = await getToken()
             const response = await fetch(
-                `http://127.0.0.1:8000/api/candidates/${candidateId}/jobs/${selectedJobId}/analyze`,
+                `${API_URL}/api/candidates/${candidateId}/jobs/${selectedJobId}/analyze`,
                 {
                     method: 'POST',
                     headers: {
@@ -198,7 +199,7 @@ export default function AnalyticsPage() {
             const newStatus = actionDialog.type === 'hire' ? 'Hired' : 'Rejected'
 
             const response = await fetch(
-                `http://127.0.0.1:8000/api/applications/${actionDialog.applicationId}/status`,
+                `${API_URL}/api/applications/${actionDialog.applicationId}/status`,
                 {
                     method: 'PUT',
                     headers: {

@@ -4,6 +4,8 @@ import { useUser } from "@clerk/nextjs"
 import { usePathname } from "next/navigation"
 import { useEffect } from "react"
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 export function AuthSync() {
   const { user, isLoaded } = useUser()
   const pathname = usePathname()
@@ -15,7 +17,7 @@ export function AuthSync() {
       if (pathname.startsWith("/candidate")) role = "Candidate"
 
       // CHANGED PORT TO 8000
-      fetch("http://127.0.0.1:8000/api/users/sync", { 
+      fetch("http://${API_URL}:8000/api/users/sync", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -11,7 +11,7 @@ services:
         value: "3.11.0"
       - key: DATABASE_URL
         sync: false
-      - key: SUPABASE_URL
+      - key: SUPABASE_ANON_URL
         sync: false
       - key: SUPABASE_KEY
         sync: false
@@ -21,5 +21,7 @@ services:
         sync: false
       - key: CLERK_PUBLISHABLE_KEY
         sync: false
+      - key: FRONTEND_URL
+        sync: false 
     rootDir: backend
     autoDeploy: true
