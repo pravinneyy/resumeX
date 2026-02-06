@@ -10,21 +10,10 @@ load_dotenv()
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not SQLALCHEMY_DATABASE_URL:
-    raise ValueError("DATABASE_URL is missing in .env file")
-
-print(f"DEBUG: DATABASE_URL type: {type(SQLALCHEMY_DATABASE_URL)}")
-print(f"DEBUG: DATABASE_URL length: {len(SQLALCHEMY_DATABASE_URL)}")
-print(f"DEBUG: Starts with postgresql://: {SQLALCHEMY_DATABASE_URL.startswith('postgresql://')}")
-print(f"DEBUG: Starts with postgres://: {SQLALCHEMY_DATABASE_URL.startswith('postgres://')}")
-# Print first 15 chars to check for quotes or spaces
-print(f"DEBUG: First 15 chars: '{SQLALCHEMY_DATABASE_URL[:15]}'")
-
-print(f"DEBUG: DATABASE_URL type: {type(SQLALCHEMY_DATABASE_URL)}")
-print(f"DEBUG: DATABASE_URL length: {len(SQLALCHEMY_DATABASE_URL)}")
-print(f"DEBUG: Starts with postgresql://: {SQLALCHEMY_DATABASE_URL.startswith('postgresql://')}")
-print(f"DEBUG: Starts with postgres://: {SQLALCHEMY_DATABASE_URL.startswith('postgres://')}")
-# Print first 10 chars to check for quotes or spaces
-print(f"DEBUG: First 15 chars: '{SQLALCHEMY_DATABASE_URL[:15]}'")
+    # We allow this to pass during build time (e.g. if env vars aren't available yet) 
+    # but it will fail at runtime if not present.
+    print("WARNING: DATABASE_URL is missing in .env file")
+    SQLALCHEMY_DATABASE_URL = "postgresql://user:password@localhost:5432/db" # Placeholder to prevent crash
 
 # Sanitize URL: Remove whitespace and quotes
 SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.strip().strip("'").strip('"')
@@ -33,13 +22,13 @@ SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.strip().strip("'").strip('"')
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-print(f"DEBUG: Final Sanitized URL first 20 chars: '{SQLALCHEMY_DATABASE_URL[:20]}...'")
+print(f"DEBUG: Final Sanitized URL starts with: '{SQLALCHEMY_DATABASE_URL[:20]}...'")
 
 # Create Engine
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, 
-    pool_pre_ping=True,   # <--- ADD THIS LINE (The most important fix)
-    pool_recycle=1800     # <--- OPTIONAL: Recycle connections every 30 mins
+    pool_pre_ping=True,   # Checks if connection is alive before using it
+    pool_recycle=1800     # Recycles connections every 30 mins
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -54,7 +43,7 @@ def get_db():
     finally:
         db.close()
 
-# Ensure these lines exist at the bottom:
+# --- 2. SUPABASE CLIENT SETUP --- #
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
@@ -64,13 +53,13 @@ if SUPABASE_URL:
 if SUPABASE_KEY:
     SUPABASE_KEY = SUPABASE_KEY.strip().strip("'").strip('"')
 
-print(f"DEBUG: SUPABASE_URL set: {bool(SUPABASE_URL)}")
-print(f"DEBUG: SUPABASE_KEY set: {bool(SUPABASE_KEY)}")
-if SUPABASE_URL:
-    print(f"DEBUG: SUPABASE_URL first 25 chars: '{SUPABASE_URL[:25]}...'")
-
-if SUPABASE_URL and SUPABASE_KEY and len(SUPABASE_URL) > 10:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+if SUPABASE_URL and SUPABASE_KEY:
+    # Basic check to avoid errors if keys are clearly too short/invalid
+    if len(SUPABASE_URL) > 10 and len(SUPABASE_KEY) > 10:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    else:
+        print("WARNING: Supabase keys appear invalid")
+        supabase = None
 else:
     print("WARNING: Supabase not configured properly, storage features will not work")
     supabase = None
