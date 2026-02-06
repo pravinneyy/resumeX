@@ -58,7 +58,19 @@ def get_db():
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-if SUPABASE_URL and SUPABASE_KEY:
+# Sanitize Supabase credentials
+if SUPABASE_URL:
+    SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
+if SUPABASE_KEY:
+    SUPABASE_KEY = SUPABASE_KEY.strip().strip("'").strip('"')
+
+print(f"DEBUG: SUPABASE_URL set: {bool(SUPABASE_URL)}")
+print(f"DEBUG: SUPABASE_KEY set: {bool(SUPABASE_KEY)}")
+if SUPABASE_URL:
+    print(f"DEBUG: SUPABASE_URL first 25 chars: '{SUPABASE_URL[:25]}...'")
+
+if SUPABASE_URL and SUPABASE_KEY and len(SUPABASE_URL) > 10:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 else:
+    print("WARNING: Supabase not configured properly, storage features will not work")
     supabase = None
