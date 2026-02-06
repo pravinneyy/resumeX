@@ -12,9 +12,28 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 if not SQLALCHEMY_DATABASE_URL:
     raise ValueError("DATABASE_URL is missing in .env file")
 
+print(f"DEBUG: DATABASE_URL type: {type(SQLALCHEMY_DATABASE_URL)}")
+print(f"DEBUG: DATABASE_URL length: {len(SQLALCHEMY_DATABASE_URL)}")
+print(f"DEBUG: Starts with postgresql://: {SQLALCHEMY_DATABASE_URL.startswith('postgresql://')}")
+print(f"DEBUG: Starts with postgres://: {SQLALCHEMY_DATABASE_URL.startswith('postgres://')}")
+# Print first 15 chars to check for quotes or spaces
+print(f"DEBUG: First 15 chars: '{SQLALCHEMY_DATABASE_URL[:15]}'")
+
+print(f"DEBUG: DATABASE_URL type: {type(SQLALCHEMY_DATABASE_URL)}")
+print(f"DEBUG: DATABASE_URL length: {len(SQLALCHEMY_DATABASE_URL)}")
+print(f"DEBUG: Starts with postgresql://: {SQLALCHEMY_DATABASE_URL.startswith('postgresql://')}")
+print(f"DEBUG: Starts with postgres://: {SQLALCHEMY_DATABASE_URL.startswith('postgres://')}")
+# Print first 10 chars to check for quotes or spaces
+print(f"DEBUG: First 15 chars: '{SQLALCHEMY_DATABASE_URL[:15]}'")
+
+# Sanitize URL: Remove whitespace and quotes
+SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.strip().strip("'").strip('"')
+
 # FIX: SQLAlchemy requires 'postgresql://', but some providers give 'postgres://'
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+print(f"DEBUG: Final Sanitized URL first 20 chars: '{SQLALCHEMY_DATABASE_URL[:20]}...'")
 
 # Create Engine
 engine = create_engine(

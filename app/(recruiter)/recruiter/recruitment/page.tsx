@@ -389,14 +389,13 @@ export default function RecruitmentPage() {
                         <div className="flex flex-col items-end gap-3 z-20">
                           <Badge
                             variant={
-                              employee.status === "Hired" || employee.status === "Interview" ? "default" :
-                                employee.status === "Rejected" || employee.status === "Not Hired" ? "destructive" :
+                              employee.status === "Hired" ? "default" :
+                                employee.status === "Not Hired" ? "destructive" :
                                   "secondary"
                             }
                             className={cn(
                               "text-sm px-3 py-1",
-                              employee.status === "Hired" && "bg-green-600",
-                              employee.status === "Interview" && "bg-blue-600"
+                              employee.status === "Hired" && "bg-green-600"
                             )}
                           >
                             {employee.status}
