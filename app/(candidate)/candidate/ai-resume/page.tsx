@@ -21,7 +21,7 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // ===== PREDEFINED SKILL OPTIONS =====
-const SKILL_OPTIONS = [
+const SKILL_OPTIONS = [ 
     "Problem Solving", "Team Collaboration", "Communication", "Leadership",
     "Project Management", "Agile/Scrum", "Data Analysis", "Research",
     "Critical Thinking", "Public Speaking", "Technical Writing", "Adaptability"

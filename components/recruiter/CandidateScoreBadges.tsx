@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Brain, Code2, Sparkles } from "lucide-react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 interface ScoreBadgesProps {
     jobId: number;
     candidateId: string;
@@ -26,7 +28,7 @@ export default function CandidateScoreBadges({ jobId, candidateId, compact = fal
         const fetchScore = async () => {
             try {
                 const res = await fetch(
-                    `http://127.0.0.1:8000/api/scoring/result/${jobId}/${candidateId}`
+                    `http://${API_URL}/api/scoring/result/${jobId}/${candidateId}`
                 );
 
                 if (res.ok) {

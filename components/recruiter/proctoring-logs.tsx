@@ -12,6 +12,8 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 interface Violation {
     type: string
     reason?: string
@@ -122,7 +124,7 @@ export function ProctoringLogs({ evaluationId, sessionId, candidateId, jobId }: 
             // Try fetching by evaluation_id first (includes anti_cheat_violations)
             if (evaluationId) {
                 console.log(`[ProctoringLogs] Fetching by evaluation_id: ${evaluationId}`)
-                const res = await fetch(`http://127.0.0.1:8000/api/evaluation/${evaluationId}`)
+                const res = await fetch(`http://${API_URL}:8000/api/evaluation/${evaluationId}`)
                 if (res.ok) {
                     const evalData = await res.json()
                     data = evalData.anti_cheat_violations || []
@@ -133,7 +135,7 @@ export function ProctoringLogs({ evaluationId, sessionId, candidateId, jobId }: 
             // Fallback: try session_id directly
             if (data.length === 0 && sessionId) {
                 console.log(`[ProctoringLogs] Fetching by session_id: ${sessionId}`)
-                const res = await fetch(`http://127.0.0.1:8000/api/anti-cheat/violations/${sessionId}`)
+                const res = await fetch(`http://${API_URL}:8000/api/anti-cheat/violations/${sessionId}`)
                 if (res.ok) {
                     const sessionData = await res.json()
                     data = sessionData.violations || []
@@ -144,11 +146,11 @@ export function ProctoringLogs({ evaluationId, sessionId, candidateId, jobId }: 
             // Fallback: try to find evaluation_id by job_id + candidate_id
             if (data.length === 0 && candidateId && jobId) {
                 console.log(`[ProctoringLogs] Fetching latest evaluation for job=${jobId}, candidate=${candidateId}`)
-                const res = await fetch(`http://127.0.0.1:8000/api/evaluation/latest/${jobId}/${candidateId}`)
+                const res = await fetch(`http://${API_URL}:8000/api/evaluation/latest/${jobId}/${candidateId}`)
                 if (res.ok) {
                     const latestData = await res.json()
                     if (latestData.has_evaluation && latestData.evaluation_id) {
-                        const evalRes = await fetch(`http://127.0.0.1:8000/api/evaluation/${latestData.evaluation_id}`)
+                        const evalRes = await fetch(`http://${API_URL}:8000/api/evaluation/${latestData.evaluation_id}`)
                         if (evalRes.ok) {
                             const evalData = await evalRes.json()
                             data = evalData.anti_cheat_violations || []
