@@ -19,7 +19,7 @@ export default function ResumePage() {
     const [isUploading, setIsUploading] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
     const [parsedData, setParsedData] = useState<any>(null)
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
     // Fetch existing resume data on page load
     useEffect(() => {

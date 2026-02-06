@@ -24,7 +24,7 @@ export default function CodingAssessment() {
   const [assessment, setAssessment] = useState<any>(null)
   const [problemIds, setProblemIds] = useState<{ [key: number]: string }>({})
   const [testCasesByQuestion, setTestCasesByQuestion] = useState<{ [key: number]: any[] }>({})
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+  const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
   // Navigation State
   const [currentQIndex, setCurrentQIndex] = useState(0)

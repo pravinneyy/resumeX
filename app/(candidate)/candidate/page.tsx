@@ -22,7 +22,7 @@ export default function CandidateDashboard() {
     const [activeTask, setActiveTask] = useState<any>(null)
     const [initialRecommendedJobs, setInitialRecommendedJobs] = useState<any[]>([])
     const [initialApplications, setInitialApplications] = useState<any[]>([])
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    const API_URL = process.env.NEXT_PUBLIC_API_URL
 
     // Realtime hooks
     const recommendedJobs = useRealtimeJobs(initialRecommendedJobs)

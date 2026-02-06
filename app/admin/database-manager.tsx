@@ -44,7 +44,7 @@ const MANAGED_TABLES = [
 ]
 
 export default function DatabaseManager() {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    const API_URL = process.env.NEXT_PUBLIC_API_URL 
     const [tables, setTables] = useState<TableInfo[]>([])
     const [selectedTable, setSelectedTable] = useState<string | null>(null)
     const [tableData, setTableData] = useState<TableData | null>(null)

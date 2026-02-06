@@ -52,8 +52,7 @@ export default function JobDetailsPage() {
     const [initialApplications, setInitialApplications] = useState<Application[]>([])
     const [selectedApp, setSelectedApp] = useState<Application | null>(null)
     const [updating, setUpdating] = useState(false)
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
+    const API_URL = process.env.NEXT_PUBLIC_API_URL 
     // Realtime applications for this job
     const applications = useRealtimeApplications(initialApplications, { jobId: Number(jobId) })
 

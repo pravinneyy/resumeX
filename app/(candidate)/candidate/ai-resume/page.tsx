@@ -19,6 +19,7 @@ import {
     Briefcase, Trash2
 } from "lucide-react"
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // ===== PREDEFINED SKILL OPTIONS =====
 const SKILL_OPTIONS = [
     "Problem Solving", "Team Collaboration", "Communication", "Leadership",
@@ -251,7 +252,7 @@ export default function AIResumePage() {
 
         try {
             const token = await getToken()
-            const res = await fetch(`http://127.0.0.1:8000/api/resume-generator/github-repos/${githubUsername}`, {
+            const res = await fetch(`${API_URL}/api/resume-generator/github-repos/${githubUsername}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -421,7 +422,7 @@ export default function AIResumePage() {
 
             console.log("[AI-Resume] Sending request body:", requestBody)
 
-            const res = await fetch("http://127.0.0.1:8000/api/resume-generator/generate", {
+            const res = await fetch("${API_URL}/api/resume-generator/generate", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -459,7 +460,7 @@ export default function AIResumePage() {
         try {
             const token = await getToken()
 
-            const res = await fetch("http://127.0.0.1:8000/api/resume-generator/compile-pdf", {
+            const res = await fetch(`${API_URL}/api/resume-generator/compile-pdf`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

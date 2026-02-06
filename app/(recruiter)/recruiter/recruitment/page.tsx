@@ -57,7 +57,7 @@ export default function RecruitmentPage() {
   const { getToken } = useAuth()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+  const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
   const [filter, setFilter] = useState<"All" | "Hired" | "Not Hired">("All")
   const [jobFilter, setJobFilter] = useState<string>("All")  // New job filter

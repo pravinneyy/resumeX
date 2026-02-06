@@ -42,7 +42,7 @@ export default function PsychometricPage() {
 
   // Mixed state handling (number for slider, string for others)
   const [answers, setAnswers] = useState<Record<string, any>>({}); // Empty default
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+  const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
   const [questions, setQuestions] = useState<Question[]>([]); // Empty default
 

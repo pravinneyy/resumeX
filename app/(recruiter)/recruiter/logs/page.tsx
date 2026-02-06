@@ -93,8 +93,7 @@ export default function LogsPage() {
     const [searchQuery, setSearchQuery] = useState("")
     const [filterType, setFilterType] = useState<string>("ALL")
     const { getToken } = useAuth()
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-
+    const API_URL = process.env.NEXT_PUBLIC_API_URL 
     const fetchLogs = async () => {
         setLoading(true)
         try {

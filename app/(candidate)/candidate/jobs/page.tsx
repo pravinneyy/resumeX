@@ -17,7 +17,7 @@ export default function CandidateJobsPage() {
     const [initialJobs, setInitialJobs] = useState<any[]>([])
     const [appliedJobIds, setAppliedJobIds] = useState<Set<number>>(new Set())
     const [search, setSearch] = useState("")
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
     // ✨ REALTIME: Use the hook for automatic updates
     const jobs = useRealtimeJobs(initialJobs)

@@ -30,7 +30,7 @@ export default function TechnicalTextPage() {
     const [submitting, setSubmitting] = useState(false)
     const [timeLeft, setTimeLeft] = useState(1800) // 30 minutes default
     const [hasStarted, setHasStarted] = useState(false)
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    const API_URL = process.env.NEXT_PUBLIC_API_URL 
 
     // Fetch questions on mount
     useEffect(() => {

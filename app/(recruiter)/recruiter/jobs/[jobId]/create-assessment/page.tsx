@@ -62,13 +62,13 @@ export default function CreateAssessmentPage() {
   const [technicalQuestionsBank, setTechnicalQuestionsBank] = useState<{ [section: string]: any[] }>({})
   const [selectedTechnicalQuestionIds, setSelectedTechnicalQuestionIds] = useState<number[]>([])
   const [technicalQuestionsLoading, setTechnicalQuestionsLoading] = useState(false)
-
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   // Check if assessment already exists
   useEffect(() => {
     const checkAssessment = async () => {
       try {
         const token = await getToken()
-        const res = await fetch(`http://127.0.0.1:8000/api/assessments/${jobId}`, {
+        const res = await fetch(`${API_URL}/api/assessments/${jobId}`, {
           headers: { "Authorization": `Bearer ${token}` }
         })
         if (res.ok) {
@@ -88,7 +88,7 @@ export default function CreateAssessmentPage() {
     const loadBank = async () => {
       try {
         const token = await getToken()
-        const res = await fetch("http://127.0.0.1:8000/api/assessments/psychometric/questions?limit=1000", {
+        const res = await fetch(`${API_URL}/api/assessments/psychometric/questions?limit=1000`, {
           headers: { "Authorization": `Bearer ${token}` }
         })
         if (res.ok) {
@@ -113,7 +113,7 @@ export default function CreateAssessmentPage() {
       setTechnicalQuestionsLoading(true)
       try {
         const token = await getToken()
-        const res = await fetch("http://127.0.0.1:8000/api/technical-questions", {
+        const res = await fetch(`${API_URL}/api/technical-questions`, {
           headers: { "Authorization": `Bearer ${token}` }
         })
         if (res.ok) {
@@ -122,12 +122,12 @@ export default function CreateAssessmentPage() {
         } else {
           // If no questions, try to seed
           console.log("No technical questions found, trying to seed...")
-          await fetch("http://127.0.0.1:8000/api/technical-questions/seed", {
+          await fetch(`${API_URL}/api/technical-questions/seed`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}` }
           })
           // Retry fetch
-          const retryRes = await fetch("http://127.0.0.1:8000/api/technical-questions", {
+          const retryRes = await fetch(`${API_URL}/api/technical-questions`, {
             headers: { "Authorization": `Bearer ${token}` }
           })
           if (retryRes.ok) {
@@ -187,7 +187,7 @@ export default function CreateAssessmentPage() {
   const fetchProblems = async () => {
     setProblemsLoading(true)
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/problems")
+      const res = await fetch(`${API_URL}/api/problems`)
       if (res.ok) {
         const data = await res.json()
         setExistingProblems(data.problems || [])
@@ -220,7 +220,7 @@ export default function CreateAssessmentPage() {
     }
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/problems/create", {
+      const res = await fetch(`${API_URL}/api/problems/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newProblem)
@@ -297,7 +297,7 @@ export default function CreateAssessmentPage() {
       console.log("Publishing Assessment Payload:", JSON.stringify(payload, null, 2))
 
       // --- REAL API CALL ---
-      const res = await fetch("http://127.0.0.1:8000/api/assessments", {
+      const res = await fetch(`${API_URL}/api/assessments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
