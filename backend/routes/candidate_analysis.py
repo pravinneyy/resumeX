@@ -13,7 +13,7 @@ import httpx
 
 router = APIRouter()
 
-HF_TOKEN = os.getenv("HF_TOKEN", "")
+HF_API_KEY = os.getenv("HF_API_KEY", "")
 
 async def analyze_candidate_with_ai(
     candidate_name: str,
@@ -69,7 +69,7 @@ Format your response as JSON:
             response = await client.post(
                 "https://router.huggingface.co/v1/chat/completions",
                 headers={
-                    "Authorization": f"Bearer {HF_TOKEN}",
+                    "Authorization": f"Bearer {HF_API_KEY}",
                     "Content-Type": "application/json"
                 },
                 json={
@@ -88,20 +88,10 @@ Format your response as JSON:
                 
                 # Try to parse JSON response
                 import json
-                import re
                 try:
-                    # Strip markdown code fences if present
-                    cleaned_response = ai_response.strip()
-                    if cleaned_response.startswith("```"):
-                        # Remove ```json or ``` at start and ``` at end
-                        cleaned_response = re.sub(r'^```(?:json)?\s*', '', cleaned_response)
-                        cleaned_response = re.sub(r'\s*```$', '', cleaned_response)
-                    
-                    analysis = json.loads(cleaned_response)
+                    analysis = json.loads(ai_response)
                     return analysis
-                except Exception as parse_error:
-                    print(f"JSON Parse Error: {parse_error}")
-                    print(f"AI Response: {ai_response}")
+                except:
                     # Fallback if AI doesn't return valid JSON
                     return {
                         "strengths": ["Analysis available"],

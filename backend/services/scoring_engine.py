@@ -214,29 +214,13 @@ class CodingScorer:
     @classmethod
     def calculate(
         cls,
-        final_score: float = None,  # Judge's final score (0-100)
-        passed_tests: int = 0,
-        total_tests: int = 0,
+        passed_tests: int,
+        total_tests: int,
         performance_score: float = 1.0,  # 0-1 scale
         quality_penalty: float = 0.0     # 0-1 scale (0 = no penalty)
     ) -> ComponentScore:
-        """Calculate coding score (0-100), using judge's final_score if available"""
+        """Calculate coding score (0-100)"""
         
-        # If judge provided a final_score, use it directly
-        if final_score is not None:
-            return ComponentScore(
-                score=round(final_score, 2),
-                max_score=cls.MAX_SCORE,
-                status="evaluated",
-                details={
-                    "judge_score": final_score,
-                    "passed_tests": passed_tests,
-                    "total_tests": total_tests,
-                    "source": "judge"
-                }
-            )
-        
-        # Fallback: calculate from components if no judge score
         if total_tests == 0:
             return ComponentScore(
                 score=0.0,
@@ -271,7 +255,6 @@ class CodingScorer:
                 "correctness": round(correctness, 4),
                 "performance_score": round(performance_score, 4),
                 "quality_penalty": round(quality_penalty, 4),
-                "source": "calculated",
                 "breakdown": {
                     "correctness_contribution": round(cls.CORRECTNESS_WEIGHT * correctness * cls.MAX_SCORE, 2),
                     "performance_contribution": round(cls.PERFORMANCE_WEIGHT * performance_score * cls.MAX_SCORE, 2),
@@ -864,28 +847,11 @@ class ScoringEngine:
         coding_data = None
         if coding_eval:
             coding_data = {
-                "final_score": coding_eval.final_score,  # Use judge's calculated score directly
                 "passed_tests": coding_eval.passed_hidden_tests,
                 "total_tests": coding_eval.total_hidden_tests,
                 "performance_score": coding_eval.performance_points / 15.0 if coding_eval.performance_points else 1.0,
                 "quality_penalty": coding_eval.penalty_points / 10.0 if coding_eval.penalty_points else 0.0
             }
-        else:
-            # Fallback: Check for legacy/simple AssessmentSubmission
-            from models import AssessmentSubmission
-            submission = db.query(AssessmentSubmission).filter(
-                AssessmentSubmission.job_id == job_id,
-                AssessmentSubmission.candidate_id == candidate_id
-            ).order_by(AssessmentSubmission.submitted_at.desc()).first()
-            
-            if submission:
-                coding_data = {
-                    "final_score": float(submission.score) if submission.score is not None else 0.0,
-                    "passed_tests": 1, # Placeholder to ensure handled as "evaluated"
-                    "total_tests": 1,
-                    "performance_score": 1.0,
-                    "quality_penalty": 0.0
-                }
         
         # 3. Fetch psychometric submission data
         psych_submission = db.query(PsychometricSubmission).filter(
@@ -937,14 +903,13 @@ class ScoringEngine:
         flags = {}
         evaluated_components = set()
         
-        # Coding score - use judge's final_score directly
+        # Coding score
         if coding_data:
             coding_score = CodingScorer.calculate(
-                final_score=coding_data.get("final_score", 0),
-                passed_tests=coding_data["passed_tests"],
-                total_tests=coding_data["total_tests"],
-                performance_score=coding_data["performance_score"],
-                quality_penalty=coding_data["quality_penalty"]
+                coding_data["passed_tests"],
+                coding_data["total_tests"],
+                coding_data["performance_score"],
+                coding_data["quality_penalty"]
             )
             component_scores["coding"] = coding_score
             if coding_score.status == "evaluated":
@@ -1124,7 +1089,7 @@ class ScoringEngine:
         db: Session
     ) -> "CandidateFinalScore":
         """Store the scoring result in Supabase"""
-        from models import CandidateFinalScore, RecruiterAnalysis
+        from models import CandidateFinalScore
         
         # Check for existing record
         existing = db.query(CandidateFinalScore).filter(
@@ -1158,7 +1123,7 @@ class ScoringEngine:
             
             db.commit()
             db.refresh(existing)
-            final_score_record = existing
+            return existing
         else:
             # Create new record
             new_score = CandidateFinalScore(
@@ -1181,48 +1146,7 @@ class ScoringEngine:
             db.add(new_score)
             db.commit()
             db.refresh(new_score)
-            final_score_record = new_score
-
-        # --- SYNC TO RECRUITER ANALYSIS TABLE (User Request) ---
-        recruiter_analysis = db.query(RecruiterAnalysis).filter(
-            RecruiterAnalysis.job_id == job_id,
-            RecruiterAnalysis.candidate_id == candidate_id
-        ).first()
-
-        # Construct AI Recommendation payload
-        # Currently leveraging static rules, but could be enhanced with LLM
-        ai_recommendation = {
-            "recommendation": result.decision,
-            "role_suitability": "High" if result.final_score > 75 else "Medium" if result.final_score > 50 else "Low",
-            "strengths": [],
-            "weaknesses": [],
-            "reasoning": f"Candidate achieved a weighted score of {int(result.final_score)}%. Decision based on components: Coding ({int(coding.score if coding else 0)}), Technical ({int(technical.score if technical else 0)})."
-        }
-        
-        # Infer strengths/weaknesses from scores
-        if coding and coding.score >= 80: ai_recommendation["strengths"].append("Strong Coding Skills")
-        if coding and coding.score < 50: ai_recommendation["weaknesses"].append("Low Coding Proficiency")
-        if technical and technical.score >= 80: ai_recommendation["strengths"].append("Strong Technical Knowledge")
-        if psychometric and psychometric.score >= 80: ai_recommendation["strengths"].append("High Cognitive Aptitude")
-        
-        if not recruiter_analysis:
-            recruiter_analysis = RecruiterAnalysis(
-                job_id=job_id,
-                candidate_id=candidate_id
-            )
-            db.add(recruiter_analysis)
-        
-        recruiter_analysis.coding_score = coding.score if coding else None
-        recruiter_analysis.technical_score = technical.score if technical and technical.status == "evaluated" else None
-        recruiter_analysis.psychometric_score = psychometric.score if psychometric else None
-        recruiter_analysis.behavioral_score = behavioral.score if behavioral else None
-        recruiter_analysis.weighted_score = result.final_score
-        recruiter_analysis.status = result.decision
-        recruiter_analysis.ai_recommendation = ai_recommendation
-        
-        db.commit()
-        
-        return final_score_record
+            return new_score
 
 
 # ============================================================

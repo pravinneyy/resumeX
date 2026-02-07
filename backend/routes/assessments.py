@@ -186,22 +186,6 @@ def submit_assessment(job_id: int, data: SubmissionCreate, db: Session = Depends
     app.match_score = final_match_score
     
     db.commit()
-    db.commit()
-
-    # 5. Trigger Scoring Engine (CRITICAL for updating CandidateFinalScore)
-    try:
-        print(f"[submit_assessment] Triggering scoring engine for job {job_id}, candidate {data.candidate_id}")
-        scoring_result = ScoringEngine.calculate_candidate_score(job_id, data.candidate_id, db)
-        ScoringEngine.store_result(scoring_result, job_id, data.candidate_id, db)
-        
-        # Sync Application record with new engine result
-        app.final_grade = scoring_result.final_score
-        app.verdict = scoring_result.decision
-        db.commit()
-        print(f"[submit_assessment] Scoring sync complete. Final Score: {scoring_result.final_score}")
-    except Exception as e:
-        print(f"[⚠️ WARNING] Scoring engine failed in submit_assessment: {e}")
-
     return {"message": "Assessment submitted successfully"}
 
 @router.post("/assessments/psychometric/seed")

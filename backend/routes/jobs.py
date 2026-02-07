@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from db import get_db
-from models import Job, Application, Recruiter, CandidateFinalScore, RecruiterAnalysis
+from models import Job, Application, Recruiter, CandidateFinalScore
 from pydantic import BaseModel
 from typing import Optional
 import json
@@ -212,30 +212,19 @@ def get_job_applications(
         for app in apps:
             analysis = parse_enhanced_notes(app.notes)
             
-            # Fetch from RecruiterAnalysis (Dedicated User View)
-            ra = db.query(RecruiterAnalysis).filter(
-                RecruiterAnalysis.job_id == job_id,
-                RecruiterAnalysis.candidate_id == app.candidate_id
-            ).first()
-
-            # Fallback to CandidateFinalScore
+            # Fetch individual assessment scores from CandidateFinalScore
             final_score_record = db.query(CandidateFinalScore).filter(
                 CandidateFinalScore.job_id == job_id,
                 CandidateFinalScore.candidate_id == app.candidate_id
             ).first()
             
-            # Extract scores
+            # Extract normalized individual scores (all 0-100)
             psychometric_score = None
             technical_score = None
             coding_score = None
             behavioral_score = None
             
-            if ra:
-                 psychometric_score = ra.psychometric_score
-                 technical_score = ra.technical_score
-                 coding_score = ra.coding_score
-                 behavioral_score = ra.behavioral_score
-            elif final_score_record:
+            if final_score_record:
                 # All scores are now normalized to 0-100
                 psychometric_score = final_score_record.psychometric_score
                 technical_score = final_score_record.technical_score
@@ -258,7 +247,7 @@ def get_job_applications(
                 "ai_reasoning": analysis["ai_reasoning"],
                 "ai_reasoning_full": app.notes,
                 "status": app.status,
-                "score": final_score_record.final_score if final_score_record else (app.final_grade or 0),
+                "score": app.final_grade or 0,
                 # Individual assessment scores (all 0-100)
                 "psychometric_score": psychometric_score,
                 "technical_score": technical_score,
